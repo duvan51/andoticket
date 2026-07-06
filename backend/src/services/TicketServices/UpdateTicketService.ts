@@ -65,10 +65,19 @@ const UpdateTicketService = async ({
     }
   }
 
+  let currentOptionId = ticket.currentOptionId;
+  if (queueId !== undefined && ticket.queueId !== queueId) {
+    currentOptionId = null as any;
+  }
+  if (status !== undefined && status !== "pending") {
+    currentOptionId = null as any;
+  }
+
   await ticket.update({
     status,
     queueId,
-    userId
+    userId,
+    currentOptionId
   });
 
   if (whatsappId) {

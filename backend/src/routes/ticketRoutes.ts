@@ -11,6 +11,10 @@ ticketRoutes.get("/tickets/:ticketId", isAuth, TicketController.show);
 
 ticketRoutes.post("/tickets", isAuth, TicketController.store);
 
+ticketRoutes.post("/tickets/internal", isAuth, TicketController.createInternalTicket);
+
+ticketRoutes.post("/tickets/internal/group", isAuth, TicketController.createInternalGroupTicket);
+
 ticketRoutes.put("/tickets/:ticketId", isAuth, TicketController.update);
 
 ticketRoutes.delete("/tickets/:ticketId", isAuth, TicketController.remove);

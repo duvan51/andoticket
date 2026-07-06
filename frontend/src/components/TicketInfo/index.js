@@ -9,10 +9,10 @@ const TicketInfo = ({ contact, ticket, onClick }) => {
 	return (
 		<CardHeader
 			onClick={onClick}
-			style={{ cursor: "pointer" }}
-			titleTypographyProps={{ noWrap: true }}
-			subheaderTypographyProps={{ noWrap: true }}
-			avatar={<Avatar src={contact.profilePicUrl} alt="contact_image" />}
+			style={{ cursor: "pointer", padding: "8px 12px" }}
+			titleTypographyProps={{ noWrap: true, style: { fontSize: "14px" } }}
+			subheaderTypographyProps={{ noWrap: true, style: { fontSize: "12px" } }}
+			avatar={<Avatar src={contact.profilePicUrl} alt="contact_image" style={{ width: 36, height: 36 }} />}
 			title={`${contact.name} #${ticket.id}`}
 			subheader={
 				<>

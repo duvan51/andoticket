@@ -13,6 +13,7 @@ import {
 import Contact from "../../models/Contact";
 import Ticket from "../../models/Ticket";
 import Message from "../../models/Message";
+import QueueOption from "../../models/QueueOption";
 
 import { getIO } from "../../libs/socket";
 import CreateMessageService from "../MessageServices/CreateMessageService";
@@ -33,7 +34,12 @@ interface Session extends Client {
 const writeFileAsync = promisify(writeFile);
 
 const verifyContact = async (msgContact: WbotContact, companyId: number): Promise<Contact> => {
-  const profilePicUrl = await msgContact.getProfilePicUrl();
+  let profilePicUrl = "";
+  try {
+    profilePicUrl = await msgContact.getProfilePicUrl();
+  } catch (err: any) {
+    logger.warn(`Could not get profile pic for contact ${msgContact.id.user}. Error: ${err.message}`);
+  }
 
   const contactData = {
     name: msgContact.name || msgContact.pushname || msgContact.id.user,
@@ -43,7 +49,7 @@ const verifyContact = async (msgContact: WbotContact, companyId: number): Promis
     companyId
   };
 
-  const contact = CreateOrUpdateContactService(contactData);
+  const contact = await CreateOrUpdateContactService(contactData);
 
   return contact;
 };
@@ -206,6 +212,27 @@ const verifyQueue = async (
       ticketId: ticket.id
     });
 
+    const body = formatBody(`\u200e${queues[0].greetingMessage}`, contact);
+    const sentMessage = await wbot.sendMessage(`${contact.number}@c.us`, body);
+    await verifyMessage(sentMessage, ticket, contact);
+
+    const rootOptions = await QueueOption.findAll({
+      where: {
+        queueId: queues[0].id,
+        parentId: null
+      }
+    });
+
+    if (rootOptions.length > 0) {
+      let optionsText = "";
+      rootOptions.forEach(opt => {
+        optionsText += `*${opt.option}* - ${opt.title}\n`;
+      });
+      const optionsBody = formatBody(`\u200e${optionsText}`, contact);
+      const sentMenuMessage = await wbot.sendMessage(`${contact.number}@c.us`, optionsBody);
+      await verifyMessage(sentMenuMessage, ticket, contact);
+    }
+
     return;
   }
 
@@ -224,6 +251,23 @@ const verifyQueue = async (
     const sentMessage = await wbot.sendMessage(`${contact.number}@c.us`, body);
 
     await verifyMessage(sentMessage, ticket, contact);
+
+    const rootOptions = await QueueOption.findAll({
+      where: {
+        queueId: choosenQueue.id,
+        parentId: null
+      }
+    });
+
+    if (rootOptions.length > 0) {
+      let optionsText = "";
+      rootOptions.forEach(opt => {
+        optionsText += `*${opt.option}* - ${opt.title}\n`;
+      });
+      const optionsBody = formatBody(`\u200e${optionsText}`, contact);
+      const sentMenuMessage = await wbot.sendMessage(`${contact.number}@c.us`, optionsBody);
+      await verifyMessage(sentMenuMessage, ticket, contact);
+    }
   } else {
     let options = "";
 
@@ -232,6 +276,76 @@ const verifyQueue = async (
     });
 
     const body = formatBody(`\u200e${greetingMessage}\n${options}`, contact);
+
+    const debouncedSentMessage = debounce(
+      async () => {
+        const sentMessage = await wbot.sendMessage(
+          `${contact.number}@c.us`,
+          body
+        );
+        verifyMessage(sentMessage, ticket, contact);
+      },
+      3000,
+      ticket.id
+    );
+
+    debouncedSentMessage();
+  }
+};
+
+const verifyQueueOption = async (
+  wbot: Session,
+  msg: WbotMessage,
+  ticket: Ticket,
+  contact: Contact
+) => {
+  const selectedOption = msg.body;
+  const { queueId, currentOptionId } = ticket;
+
+  const options = await QueueOption.findAll({
+    where: {
+      queueId,
+      parentId: currentOptionId || null
+    }
+  });
+
+  if (options.length === 0) {
+    return;
+  }
+
+  const choosenOption = options.find(
+    o => o.option.toLowerCase() === selectedOption.trim().toLowerCase()
+  );
+
+  if (choosenOption) {
+    await ticket.update({ currentOptionId: choosenOption.id });
+
+    const body = formatBody(`\u200e${choosenOption.message}`, contact);
+    const sentMessage = await wbot.sendMessage(`${contact.number}@c.us`, body);
+    await verifyMessage(sentMessage, ticket, contact);
+
+    const childOptions = await QueueOption.findAll({
+      where: {
+        queueId,
+        parentId: choosenOption.id
+      }
+    });
+
+    if (childOptions.length > 0) {
+      let optionsText = "";
+      childOptions.forEach(opt => {
+        optionsText += `*${opt.option}* - ${opt.title}\n`;
+      });
+      const childBody = formatBody(`\u200e${optionsText}`, contact);
+      const sentMenuMessage = await wbot.sendMessage(`${contact.number}@c.us`, childBody);
+      await verifyMessage(sentMenuMessage, ticket, contact);
+    }
+  } else {
+    let optionsText = "";
+    options.forEach(opt => {
+      optionsText += `*${opt.option}* - ${opt.title}\n`;
+    });
+    const body = formatBody(`\u200e${optionsText}`, contact);
 
     const debouncedSentMessage = debounce(
       async () => {
@@ -344,13 +458,21 @@ const handleMessage = async (
     }
 
     if (
-      !ticket.queue &&
+      !ticket.queueId &&
       !chat.isGroup &&
       !msg.fromMe &&
       !ticket.userId &&
       whatsapp.queues.length >= 1
     ) {
       await verifyQueue(wbot, msg, ticket, contact);
+    } else if (
+      ticket.queueId &&
+      !chat.isGroup &&
+      !msg.fromMe &&
+      !ticket.userId &&
+      ticket.status === "pending"
+    ) {
+      await verifyQueueOption(wbot, msg, ticket, contact);
     }
 
     if (msg.type === "vcard") {
@@ -373,8 +495,9 @@ const handleMessage = async (
         for await (const ob of obj) {
           const cont = await CreateContactService({
             name: contact,
-            number: ob.number.replace(/\D/g, "")
-          });
+            number: ob.number.replace(/\D/g, ""),
+            companyId: 1
+          } as any);
         }
       } catch (error) {
         console.log(error);
@@ -441,9 +564,43 @@ const handleMessage = async (
         console.log(error);
       }
     } */
-  } catch (err) {
+  } catch (err: any) {
     Sentry.captureException(err);
-    logger.error(`Error handling whatsapp message: Err: ${err}`);
+    
+    // Manejar AppError y otros tipos de error
+    let message = "Unknown error";
+    let stack = undefined;
+    let errorDetails: any = {};
+    
+    if (err?.message) {
+      message = err.message;
+    } else if (typeof err === "string") {
+      message = err;
+    }
+    
+    if (err instanceof Error) {
+      stack = err.stack;
+    }
+    
+    // Capturar todas las propiedades del error
+    if (err && typeof err === "object") {
+      errorDetails = { ...err };
+    }
+    
+    console.error("🔴 ERROR PROCESSING MESSAGE:", {
+      message,
+      statusCode: err?.statusCode,
+      type: err?.constructor?.name || typeof err,
+      stack,
+      fullError: JSON.stringify(errorDetails, null, 2)
+    });
+    
+    logger.error({
+      message,
+      statusCode: err?.statusCode,
+      type: err?.constructor?.name || typeof err,
+      stack
+    }, `Error handling whatsapp message: ${message}`);
   }
 };
 

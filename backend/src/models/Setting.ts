@@ -14,16 +14,13 @@ import Company from "./Company";
 @Table
 class Setting extends Model<Setting> {
   @PrimaryKey
-  @AutoIncrement
-  @Column
-  id: number;
-
   @Column
   key: string;
 
   @Column
   value: string;
 
+  @PrimaryKey
   @ForeignKey(() => Company)
   @Column
   companyId: number;

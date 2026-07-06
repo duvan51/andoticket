@@ -20,6 +20,12 @@ import TicketsQueueSelect from "../TicketsQueueSelect";
 import { Button, FormControl, InputLabel, MenuItem, Select } from "@material-ui/core";
 import { amber } from "@material-ui/core/colors";
 import NotificationsActiveIcon from "@material-ui/icons/NotificationsActive";
+import api from "../../services/api";
+import toastError from "../../errors/toastError";
+import PeopleIcon from "@material-ui/icons/People";
+import { useHistory } from "react-router-dom";
+import openSocket from "../../services/socket-io";
+import { List, ListItem, ListItemAvatar, ListItemText, Avatar } from "@material-ui/core";
 
 const useStyles = makeStyles((theme) => ({
   ticketsWrapper: {
@@ -93,26 +99,36 @@ const useStyles = makeStyles((theme) => ({
     },
   },
   tabAlert: {
-    minWidth: "20% !important",
-    width: "20%",
+    minWidth: "25% !important",
+    width: "25%",
     padding: theme.spacing(0, 1),
     flexGrow: 0,
-    flexBasis: "20% !important",
+    flexBasis: "25% !important",
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
   },
   tabChats: {
-    minWidth: "40% !important",
-    width: "40%",
+    minWidth: "25% !important",
+    width: "25%",
     flexGrow: 0,
-    flexBasis: "40% !important",
+    flexBasis: "25% !important",
   },
   tabLeads: {
-    minWidth: "40% !important",
-    width: "40%",
+    minWidth: "25% !important",
+    width: "25%",
     flexGrow: 0,
-    flexBasis: "40% !important",
+    flexBasis: "25% !important",
+  },
+  tabInternal: {
+    minWidth: "25% !important",
+    width: "25%",
+    padding: theme.spacing(0, 1),
+    flexGrow: 0,
+    flexBasis: "25% !important",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
   },
   "@keyframes shake": {
     "0%": { transform: "rotate(0deg)" },
@@ -157,10 +173,106 @@ const TicketsManager = () => {
   const [openCount, setOpenCount] = useState(0);
   const [pendingCount, setPendingCount] = useState(0);
   const [unansweredCount, setUnansweredCount] = useState(0);
-  const userQueueIds = user.queues.map((q) => q.id);
-  const [selectedQueueIds, setSelectedQueueIds] = useState(userQueueIds || []);
+  const userQueueIds = user.queues?.map((q) => q.id) || [];
+  const [selectedQueueIds, setSelectedQueueIds] = useState(userQueueIds);
   const [selectedTagId, setSelectedTagId] = useState("");
   const [tags, setTags] = useState([]);
+  const [usersList, setUsersList] = useState([]);
+  const [internalTickets, setInternalTickets] = useState([]);
+  const [selectedUserId, setSelectedUserId] = useState(user?.id || "");
+  const [allUsers, setAllUsers] = useState([]);
+  const history = useHistory();
+
+  useEffect(() => {
+    if (user.profile?.toUpperCase() === "ADMIN" || user.profile?.toUpperCase() === "SUPERADMIN") {
+      const fetchAllUsers = async () => {
+        try {
+          const { data } = await api.get("/users");
+          setAllUsers(data.users || []);
+        } catch (err) {
+          toastError(err);
+        }
+      };
+      fetchAllUsers();
+    }
+  }, [user]);
+
+  const fetchInternalTickets = async () => {
+    try {
+      const { data } = await api.get("/tickets", {
+        params: { isInternal: "true" }
+      });
+      setInternalTickets(data.tickets || []);
+    } catch (err) {
+      // Ignored background fetch error
+    }
+  };
+
+  useEffect(() => {
+    fetchInternalTickets();
+  }, []);
+
+  useEffect(() => {
+    const socket = openSocket();
+
+    socket.on("connect", () => {
+      socket.emit("joinNotification");
+    });
+
+    socket.on("appMessage", (data) => {
+      if (data.action === "create" && data.ticket.contact.number.startsWith("user_")) {
+        fetchInternalTickets();
+      }
+    });
+
+    socket.on("ticket", (data) => {
+      if (data.action === "update" && data.ticket.contact.number.startsWith("user_")) {
+        fetchInternalTickets();
+      }
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, []);
+
+  const internalUnreadCount = internalTickets.reduce((acc, t) => acc + t.unreadMessages, 0);
+
+  const getUserUnreadCount = (userId) => {
+    const ticket = internalTickets.find(t => t.contact.number === `user_${userId}`);
+    return ticket ? ticket.unreadMessages : 0;
+  };
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const { data } = await api.get("/users");
+        const otherUsers = data.users.filter(u => u.id !== user?.id);
+        setUsersList(otherUsers);
+      } catch (err) {
+        toastError(err);
+      }
+    };
+    fetchUsers();
+  }, [user]);
+
+  const handleStartInternalChat = async (targetUserId) => {
+    try {
+      const { data } = await api.post("/tickets/internal", { targetUserId });
+      history.push(`/tickets/${data.id}`);
+    } catch (err) {
+      toastError(err);
+    }
+  };
+
+  const handleStartInternalGroupChat = async () => {
+    try {
+      const { data } = await api.post("/tickets/internal/group");
+      history.push(`/tickets/${data.id}`);
+    } catch (err) {
+      toastError(err);
+    }
+  };
 
   useEffect(() => {
     const fetchTags = async () => {
@@ -175,7 +287,7 @@ const TicketsManager = () => {
   }, []);
 
   useEffect(() => {
-    if (user.profile.toUpperCase() === "ADMIN") {
+    if (user.profile?.toUpperCase() === "ADMIN" || user.profile?.toUpperCase() === "SUPERADMIN") {
       setShowAllTickets(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -276,27 +388,6 @@ const TicketsManager = () => {
             >
               {i18n.t("ticketsManager.buttons.newTicket")}
             </Button>
-            <Can
-              role={user.profile}
-              perform="tickets-manager:showall"
-              yes={() => (
-                <FormControlLabel
-                  label={i18n.t("tickets.buttons.showAll")}
-                  labelPlacement="start"
-                  control={
-                    <Switch
-                      size="small"
-                      checked={showAllTickets}
-                      onChange={() =>
-                        setShowAllTickets((prevState) => !prevState)
-                      }
-                      name="showAllTickets"
-                      color="primary"
-                    />
-                  }
-                />
-              )}
-            />
           </>
         )}
         <TicketsQueueSelect
@@ -320,6 +411,7 @@ const TicketsManager = () => {
                 className={classes.badgeUnanswered}
                 badgeContent={unansweredCount}
                 max={99}
+                overlap="rectangular"
               >
                 <NotificationsActiveIcon 
                   className={unansweredCount > 0 ? classes.shaking : classes.iconInactive} 
@@ -335,6 +427,7 @@ const TicketsManager = () => {
                 className={classes.badge}
                 badgeContent={openCount}
                 color="primary"
+                overlap="rectangular"
               >
                 Chats
               </Badge>
@@ -348,15 +441,30 @@ const TicketsManager = () => {
                 className={classes.badge}
                 badgeContent={pendingCount}
                 color="secondary"
+                overlap="rectangular"
               >
                 Leads
               </Badge>
             }
             value={"pending"}
           />
+          <Tab
+            className={classes.tabInternal}
+            label={
+              <Badge
+                className={classes.badge}
+                badgeContent={internalUnreadCount}
+                color="primary"
+                overlap="rectangular"
+              >
+                <PeopleIcon />
+              </Badge>
+            }
+            value={"internal"}
+          />
         </Tabs>
-        <Paper square elevation={0} style={{ padding: "0 8px 8px 8px" }}>
-          <FormControl fullWidth margin="dense" variant="outlined">
+        <Paper square elevation={0} style={{ padding: "0 8px 8px 8px", display: "flex", gap: "8px" }}>
+          <FormControl fullWidth margin="dense" variant="outlined" style={{ flex: 1 }}>
             <InputLabel id="tag-filter-label">{i18n.t("ticketsManager.tags.placeholder")}</InputLabel>
             <Select
               labelId="tag-filter-label"
@@ -372,6 +480,24 @@ const TicketsManager = () => {
               ))}
             </Select>
           </FormControl>
+          {(user.profile?.toUpperCase() === "ADMIN" || user.profile?.toUpperCase() === "SUPERADMIN") && showAllTickets && (
+            <FormControl fullWidth margin="dense" variant="outlined" style={{ flex: 1 }}>
+              <InputLabel id="user-filter-label">Filtrar por Asesor</InputLabel>
+              <Select
+                labelId="user-filter-label"
+                value={selectedUserId}
+                onChange={(e) => setSelectedUserId(e.target.value)}
+                label="Filtrar por Asesor"
+              >
+                <MenuItem value=""><em>Todos los Asesores</em></MenuItem>
+                {allUsers.map((u) => (
+                  <MenuItem key={u.id} value={u.id}>
+                    {u.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          )}
         </Paper>
         <Paper className={classes.ticketsWrapper}>
           <TicketsList
@@ -379,6 +505,7 @@ const TicketsManager = () => {
             showAll={showAllTickets}
             selectedQueueIds={selectedQueueIds}
             tagId={selectedTagId}
+            userId={selectedUserId}
             updateCount={(val) => setOpenCount(val)}
             style={applyPanelStyle("open")}
           />
@@ -386,6 +513,7 @@ const TicketsManager = () => {
             status="pending"
             selectedQueueIds={selectedQueueIds}
             tagId={selectedTagId}
+            userId={selectedUserId}
             updateCount={(val) => setPendingCount(val)}
             style={applyPanelStyle("pending")}
           />
@@ -395,9 +523,59 @@ const TicketsManager = () => {
             showAll={showAllTickets}
             selectedQueueIds={selectedQueueIds}
             tagId={selectedTagId}
+            userId={selectedUserId}
             updateCount={(val) => setUnansweredCount(val)}
             style={applyPanelStyle("unanswered")}
           />
+          {tabOpen === "internal" && (
+            <div style={{ flex: 1, overflowY: "scroll" }}>
+              <List>
+                <ListItem
+                  button
+                  style={{ backgroundColor: "#e8eaf6" }}
+                  onClick={handleStartInternalGroupChat}
+                >
+                  <ListItemAvatar>
+                    <Avatar style={{ backgroundColor: "#3f51b5", color: "#fff" }}>
+                      <PeopleIcon />
+                    </Avatar>
+                  </ListItemAvatar>
+                  <ListItemText
+                    primary="Chat General (Equipo)"
+                    secondary="Chat grupal con todos los miembros"
+                  />
+                </ListItem>
+                {usersList.map((u) => (
+                  <ListItem
+                    button
+                    key={u.id}
+                    onClick={() => handleStartInternalChat(u.id)}
+                  >
+                    <ListItemAvatar>
+                      <Badge
+                        badgeContent={getUserUnreadCount(u.id)}
+                        color="secondary"
+                        overlap="circular"
+                      >
+                        <Avatar style={{ backgroundColor: "#3f51b5", color: "#fff" }}>
+                          {u.name.charAt(0).toUpperCase()}
+                        </Avatar>
+                      </Badge>
+                    </ListItemAvatar>
+                    <ListItemText
+                      primary={u.name}
+                      secondary={u.email}
+                    />
+                  </ListItem>
+                ))}
+                {usersList.length === 0 && (
+                  <Typography variant="body2" style={{ textAlign: "center", marginTop: 20 }}>
+                    No hay otros usuarios.
+                  </Typography>
+                )}
+              </List>
+            </div>
+          )}
         </Paper>
       </TabPanel>
       <TabPanel value={tab} name="closed" className={classes.ticketsWrapper}>

@@ -25,6 +25,7 @@ import { AuthContext } from "../context/Auth/AuthContext";
 import BackdropLoading from "../components/BackdropLoading";
 import { i18n } from "../translate/i18n";
 import { useThemeContext } from "../context/DarkMode";
+import { getBackendUrl } from "../config";
 
 const drawerWidth = 240;
 
@@ -226,13 +227,20 @@ const LoggedInLayout = ({ children }) => {
           >
             <MenuIcon />
           </IconButton>
+          {user?.company?.logo && (
+            <img
+              src={`${getBackendUrl()}/public/${user.company.logo}`.replace(/([^:]\/)\/+/g, "$1")}
+              alt="Logo"
+              style={{ height: 32, maxWidth: 120, marginRight: 10, borderRadius: 4, objectFit: "contain" }}
+            />
+          )}
           <Typography
             component="h1"
             variant="h6"
             noWrap
             className={classes.title}
           >
-            WhaTicket
+            {user?.company?.name ? `${user.company.name} (${user.name})` : "WhaTicket"}
           </Typography>
 
           <div className={classes.themeSwitchContainer}>

@@ -33,7 +33,7 @@ const useStyles = makeStyles((theme) => ({
   ticketInfo: {
     maxWidth: "50%",
     flexBasis: "50%",
-    [theme.breakpoints.down("sm")]: {
+    [theme.breakpoints.down("xs")]: {
       maxWidth: "80%",
       flexBasis: "80%",
     },
@@ -42,7 +42,7 @@ const useStyles = makeStyles((theme) => ({
     maxWidth: "50%",
     flexBasis: "50%",
     display: "flex",
-    [theme.breakpoints.down("sm")]: {
+    [theme.breakpoints.down("xs")]: {
       maxWidth: "100%",
       flexBasis: "100%",
       marginBottom: "5px",
@@ -150,6 +150,18 @@ const Ticket = () => {
       }
     });
 
+    socket.on("appMessage", (data) => {
+      if (data.action === "create" && (data.message.mediaType === "note" || data.message.mediaType === "tag" || data.message.mediaType === "schedule_history")) {
+        setTicket((prevTicket) => {
+          if (prevTicket && prevTicket.id === data.message.ticketId) {
+            const updatedMessages = prevTicket.messages ? [...prevTicket.messages, data.message] : [data.message];
+            return { ...prevTicket, messages: updatedMessages };
+          }
+          return prevTicket;
+        });
+      }
+    });
+
     return () => {
       socket.disconnect();
     };
@@ -232,7 +244,7 @@ const Ticket = () => {
               </Paper>
             </div>
           )}
-          <MessageInput ticketStatus={ticket.status} />
+          <MessageInput ticketStatus={ticket.status} ticket={ticket} />
         </ReplyMessageProvider>
       </Paper>
       <ContactDrawer

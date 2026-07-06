@@ -23,6 +23,8 @@ import { i18n } from "../../translate/i18n";
 
 import { AuthContext } from "../../context/Auth/AuthContext";
 
+import GoogleLoginButton from "../../components/GoogleLoginButton";
+
 // const Copyright = () => {
 // 	return (
 // 		<Typography variant="body2" color="textSecondary" align="center">
@@ -131,6 +133,9 @@ const Login = () => {
           >
             {i18n.t("login.buttons.submit")}
           </Button>
+          
+          <GoogleLoginButton />
+          
           <Grid container>
             <Grid item>
               <Link

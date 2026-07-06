@@ -6,7 +6,7 @@ import DeletePlanService from "../services/PlanServices/DeletePlanService";
 import AppError from "../errors/AppError";
 
 export const index = async (req: Request, res: Response): Promise<Response> => {
-    if (req.user.profile !== "admin" || req.user.companyId !== 1) {
+    if (req.user.profile !== "superadmin") {
         throw new AppError("ERR_NO_PERMISSION", 403);
     }
 
@@ -16,7 +16,7 @@ export const index = async (req: Request, res: Response): Promise<Response> => {
 };
 
 export const store = async (req: Request, res: Response): Promise<Response> => {
-    if (req.user.profile !== "admin" || req.user.companyId !== 1) {
+    if (req.user.profile !== "superadmin") {
         throw new AppError("ERR_NO_PERMISSION", 403);
     }
 
@@ -34,7 +34,7 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
 };
 
 export const update = async (req: Request, res: Response): Promise<Response> => {
-    if (req.user.profile !== "admin" || req.user.companyId !== 1) {
+    if (req.user.profile !== "superadmin") {
         throw new AppError("ERR_NO_PERMISSION", 403);
     }
 

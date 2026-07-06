@@ -17,6 +17,15 @@ import ContactModal from "../ContactModal";
 import ContactDrawerSkeleton from "../ContactDrawerSkeleton";
 import MarkdownWrapper from "../MarkdownWrapper";
 import TagsSelect from "../TagsSelect";
+import {
+	Timeline,
+	TimelineItem,
+	TimelineSeparator,
+	TimelineConnector,
+	TimelineContent,
+	TimelineDot
+} from "@material-ui/lab";
+import { format, parseISO } from "date-fns";
 
 const drawerWidth = 320;
 
@@ -80,7 +89,84 @@ const useStyles = makeStyles(theme => ({
 		marginTop: 4,
 		padding: 6,
 	},
+	timelineContainer: {
+		padding: "0",
+		margin: "0",
+		"& .MuiTimelineItem-missingOppositeContent:before": {
+			display: "none"
+		},
+		"& .MuiTimelineItem-alignLeft:before": {
+			display: "none"
+		}
+	},
+	timelinePaper: {
+		marginTop: 8,
+		maxHeight: "280px",
+		overflowY: "auto",
+		padding: "12px",
+		display: "flex",
+		flexDirection: "column",
+		...theme.scrollbarStyles,
+	}
 }));
+
+const formatDuration = (startStr, endStr) => {
+	const start = new Date(startStr);
+	const end = new Date(endStr);
+	const diffMs = end - start;
+	const diffMins = Math.round(diffMs / 60000);
+	if (diffMins < 1) return "menos de 1 min";
+	if (diffMins < 60) return `${diffMins} min`;
+	const diffHours = Math.floor(diffMins / 60);
+	const remMins = diffMins % 60;
+	return `${diffHours}h ${remMins}m`;
+};
+
+const getTimelineItems = (ticket) => {
+	const items = [];
+	
+	if (ticket?.trackings) {
+		ticket.trackings.forEach((t) => {
+			items.push({
+				type: "tracking",
+				id: `tracking-${t.id}`,
+				createdAt: t.createdAt,
+				finishedAt: t.finishedAt,
+				userId: t.userId,
+				user: t.user,
+			});
+		});
+	}
+
+	if (ticket?.messages) {
+		ticket.messages.forEach((m) => {
+			if (m.mediaType === "note") {
+				items.push({
+					type: "note",
+					id: `note-${m.id}`,
+					createdAt: m.createdAt,
+					body: m.body,
+				});
+			} else if (m.mediaType === "tag") {
+				items.push({
+					type: "tag",
+					id: `tag-${m.id}`,
+					createdAt: m.createdAt,
+					body: m.body,
+				});
+			} else if (m.mediaType === "schedule_history") {
+				items.push({
+					type: "schedule_history",
+					id: `schedule-${m.id}`,
+					createdAt: m.createdAt,
+					body: m.body,
+				});
+			}
+		});
+	}
+
+	return items.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+};
 
 const ContactDrawer = ({ open, handleDrawerClose, contact, ticket, loading }) => {
 	const classes = useStyles();
@@ -160,6 +246,80 @@ const ContactDrawer = ({ open, handleDrawerClose, contact, ticket, loading }) =>
 								</Typography>
 							</Paper>
 						))}
+					</Paper>
+					<Paper square variant="outlined" className={classes.timelinePaper}>
+						<Typography variant="subtitle1" style={{ marginBottom: 10, fontWeight: "bold" }}>
+							Historial de Proceso
+						</Typography>
+						{(() => {
+							const timelineItems = getTimelineItems(ticket);
+							if (timelineItems.length === 0) {
+								return (
+									<Typography variant="body2" color="textSecondary" style={{ fontStyle: "italic", fontSize: "12px" }}>
+										No hay historial registrado.
+									</Typography>
+								);
+							}
+
+							return (
+								<Timeline align="left" className={classes.timelineContainer}>
+									{timelineItems.map((item, idx) => {
+										const isLast = idx === timelineItems.length - 1;
+										const dateFormatted = format(parseISO(item.createdAt), "dd/MM/yyyy HH:mm");
+										
+										let contentText = "";
+										let dotBgColor = "#9e9e9e"; // grey
+										
+										if (item.type === "note") {
+											contentText = `Nota: "${item.body}"`;
+											dotBgColor = "#fbc02d"; // yellow
+										} else if (item.type === "tag") {
+											contentText = item.body; // e.g. "Etiqueta agregada: 'Negociación'"
+											dotBgColor = "#9c27b0"; // purple
+										} else if (item.type === "schedule_history") {
+											contentText = item.body;
+											dotBgColor = "#607d8b"; // grey-blue
+										} else {
+											if (idx === 0) {
+												contentText = "Inicio conversación";
+												dotBgColor = "#e91e63"; // pink/pink-red
+											} else if (!item.userId) {
+												contentText = "Devuelto a pendientes";
+												dotBgColor = "#ff9800"; // orange
+											} else {
+												contentText = `Asignado a: ${item.user?.name || "Desconocido"}`;
+												dotBgColor = "#2196f3"; // blue
+											}
+
+											if (item.finishedAt) {
+												const durationText = formatDuration(item.createdAt, item.finishedAt);
+												contentText += ` (${durationText})`;
+											} else {
+												contentText += " (Activo)";
+												dotBgColor = "#4caf50"; // green
+											}
+										}
+
+										return (
+											<TimelineItem key={item.id} style={{ minHeight: "50px", padding: 0 }}>
+												<TimelineSeparator style={{ marginRight: 8 }}>
+													<TimelineDot style={{ backgroundColor: dotBgColor, padding: 4, margin: "6px 0" }} />
+													{!isLast && <TimelineConnector />}
+												</TimelineSeparator>
+												<TimelineContent style={{ padding: "4px 0", fontSize: "12px" }}>
+													<Typography variant="body2" style={{ fontSize: "12px", fontWeight: "500" }}>
+														{contentText}
+													</Typography>
+													<Typography variant="caption" color="textSecondary" style={{ fontSize: "10px" }}>
+														{dateFormatted}
+													</Typography>
+												</TimelineContent>
+											</TimelineItem>
+										);
+									})}
+								</Timeline>
+							);
+						})()}
 					</Paper>
 				</div>
 			)}

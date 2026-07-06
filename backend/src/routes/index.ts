@@ -15,6 +15,9 @@ import tagRoutes from "./tagRoutes";
 import dashboardRoutes from "./dashboardRoutes";
 import metaRoutes from "./metaRoutes";
 import planRoutes from "./planRoutes";
+import companyRoutes from "./companyRoutes";
+import scheduledMessageRoutes from "./scheduledMessageRoutes";
+import queueOptionRoutes from "./queueOptionRoutes";
 
 const routes = Router();
 
@@ -33,5 +36,8 @@ routes.use(tagRoutes);
 routes.use(dashboardRoutes);
 routes.use(metaRoutes);
 routes.use(planRoutes);
+routes.use(companyRoutes);
+routes.use(scheduledMessageRoutes);
+routes.use(queueOptionRoutes);
 
 export default routes;

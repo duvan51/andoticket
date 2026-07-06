@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useContext } from "react";
 import { useHistory } from "react-router-dom";
 import { format } from "date-fns";
 import openSocket from "../../services/socket-io";
-import useSound from "use-sound";
+// import useSound from "use-sound";
 
 import Popover from "@material-ui/core/Popover";
 import IconButton from "@material-ui/core/IconButton";
@@ -56,7 +56,10 @@ const NotificationsPopOver = () => {
 	const [, setDesktopNotifications] = useState([]);
 
 	const { tickets } = useTickets({ withUnreadMessages: "true" });
-	const [play] = useSound(alertSound);
+	const play = () => {
+		const audio = new Audio(alertSound);
+		audio.play().catch(e => console.error("Error playing sound:", e));
+	};
 	const soundAlertRef = useRef();
 
 	const historyRef = useRef(history);

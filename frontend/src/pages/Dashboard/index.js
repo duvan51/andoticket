@@ -1,15 +1,23 @@
 import React, { useContext, useState, useEffect } from "react";
 
-import Paper from "@material-ui/core/Paper";
-import Container from "@material-ui/core/Container";
-import Grid from "@material-ui/core/Grid";
+import { 
+  Paper, 
+  Container, 
+  Grid, 
+  Typography, 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableHead, 
+  TableRow,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Button,
+  TextField
+} from "@material-ui/core";
 import { makeStyles } from "@material-ui/core/styles";
-import Typography from "@material-ui/core/Typography";
-import Table from "@material-ui/core/Table";
-import TableBody from "@material-ui/core/TableBody";
-import TableCell from "@material-ui/core/TableCell";
-import TableHead from "@material-ui/core/TableHead";
-import TableRow from "@material-ui/core/TableRow";
 
 import { AuthContext } from "../../context/Auth/AuthContext";
 import { i18n } from "../../translate/i18n";
@@ -57,12 +65,23 @@ const Dashboard = () => {
   const [data, setData] = useState({
     leadsByUser: [],
     newLeads: [],
-    userTimes: {}
+    userTimes: {},
+    companyUsers: []
   });
+
+  const [selectedUserId, setSelectedUserId] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
 
   useEffect(() => {
     if (user.profile === "admin") {
-      api.get("/dashboard/analytics")
+      api.get("/dashboard/analytics", {
+        params: {
+          userId: selectedUserId || undefined,
+          startDate: startDate || undefined,
+          endDate: endDate || undefined
+        }
+      })
         .then((res) => {
           setData(res.data);
         })
@@ -70,7 +89,7 @@ const Dashboard = () => {
           console.error("Error fetching analytics", err);
         });
     }
-  }, [user]);
+  }, [user, selectedUserId, startDate, endDate]);
 
   if (user.profile !== "admin") {
       return (
@@ -93,6 +112,72 @@ const Dashboard = () => {
     <div>
       <Container maxWidth="lg" className={classes.container}>
         <Grid container spacing={3}>
+            {/* Filtros */}
+            <Grid item xs={12}>
+              <Paper className={classes.card}>
+                <Grid container spacing={2} alignItems="center">
+                  <Grid item xs={12} sm={3}>
+                    <FormControl variant="outlined" margin="dense" fullWidth>
+                      <InputLabel>Filtrar por Usuario</InputLabel>
+                      <Select
+                        value={selectedUserId}
+                        onChange={(e) => setSelectedUserId(e.target.value)}
+                        label="Filtrar por Usuario"
+                      >
+                        <MenuItem value="">Todos los usuarios</MenuItem>
+                        {data.companyUsers?.map((u) => (
+                          <MenuItem key={u.id} value={u.id}>{u.name}</MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  </Grid>
+                  
+                  <Grid item xs={12} sm={3}>
+                    <TextField
+                      label="Fecha Inicio"
+                      type="date"
+                      variant="outlined"
+                      margin="dense"
+                      fullWidth
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      InputLabelProps={{ shrink: true }}
+                    />
+                  </Grid>
+                  
+                  <Grid item xs={12} sm={3}>
+                    <TextField
+                      label="Fecha Fin"
+                      type="date"
+                      variant="outlined"
+                      margin="dense"
+                      fullWidth
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      InputLabelProps={{ shrink: true }}
+                    />
+                  </Grid>
+                  
+                  {(selectedUserId || startDate || endDate) && (
+                    <Grid item xs={12} sm={3}>
+                      <Button
+                        variant="outlined"
+                        color="secondary"
+                        fullWidth
+                        onClick={() => {
+                          setSelectedUserId("");
+                          setStartDate("");
+                          setEndDate("");
+                        }}
+                      >
+                        Limpiar Filtros
+                      </Button>
+                    </Grid>
+                  )}
+                </Grid>
+              </Paper>
+            </Grid>
+
             {/* Leads Accepted by User */}
             <Grid item xs={12} md={6}>
                 <Paper className={classes.card}>
@@ -107,9 +192,9 @@ const Dashboard = () => {
                             </TableRow>
                         </TableHead>
                         <TableBody>
-                            {data.leadsByUser.map((row) => (
+                             {data.leadsByUser.map((row) => (
                                 <TableRow key={row.userId}>
-                                    <TableCell>{row.User?.name || "N/A"}</TableCell>
+                                    <TableCell>{row.user?.name || row.User?.name || "N/A"}</TableCell>
                                     <TableCell>{row.count}</TableCell>
                                 </TableRow>
                             ))}

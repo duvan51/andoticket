@@ -21,6 +21,8 @@ import Whatsapp from "./Whatsapp";
 import Tag from "./Tag";
 import TicketTag from "./TicketTag";
 import Company from "./Company";
+import TicketTracking from "./TicketTracking";
+import QueueOption from "./QueueOption";
 
 @Table
 class Ticket extends Model<Ticket> {
@@ -87,11 +89,21 @@ class Ticket extends Model<Ticket> {
   @BelongsTo(() => Company)
   company: Company;
 
+  @ForeignKey(() => QueueOption)
+  @Column
+  currentOptionId: number;
+
+  @BelongsTo(() => QueueOption)
+  currentOption: QueueOption;
+
   @HasMany(() => Message)
   messages: Message[];
 
   @BelongsToMany(() => Tag, () => TicketTag)
   tags: Tag[];
+
+  @HasMany(() => TicketTracking)
+  trackings: TicketTracking[];
 }
 
 export default Ticket;

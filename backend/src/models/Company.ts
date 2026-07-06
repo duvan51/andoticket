@@ -39,6 +39,9 @@ class Company extends Model<Company> {
     @Column
     email: string;
 
+    @Column
+    logo: string;
+
     @Column(DataType.VIRTUAL)
     password?: string;
 

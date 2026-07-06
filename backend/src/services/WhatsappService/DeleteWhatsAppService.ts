@@ -6,7 +6,7 @@ const DeleteWhatsAppService = async (id: string, companyId: number): Promise<voi
     where: { id }
   });
 
-  if (whatsapp && companyId !== 1 && whatsapp.companyId !== companyId) {
+  if (whatsapp && whatsapp.companyId !== companyId) {
     throw new AppError("ERR_NO_WAPP_FOUND", 404);
   }
 

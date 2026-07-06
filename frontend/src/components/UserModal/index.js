@@ -64,23 +64,26 @@ const useStyles = makeStyles(theme => ({
 	},
 }));
 
-const UserSchema = Yup.object().shape({
-	name: Yup.string()
-		.min(2, "Too Short!")
-		.max(50, "Too Long!")
-		.required("Required"),
-	password: Yup.string().min(5, "Too Short!").max(50, "Too Long!"),
-	email: Yup.string().email("Invalid email").required("Required"),
-});
-
-const UserModal = ({ open, onClose, userId }) => {
+const UserModal = ({ open, onClose, userId, companyId }) => {
 	const classes = useStyles();
+
+	const UserSchema = Yup.object().shape({
+		name: Yup.string()
+			.min(2, "Too Short!")
+			.max(50, "Too Long!")
+			.required("Required"),
+		password: userId
+			? Yup.string().min(5, "Too Short!").max(50, "Too Long!")
+			: Yup.string().min(5, "Too Short!").max(50, "Too Long!").required("Required"),
+		email: Yup.string().email("Invalid email").required("Required"),
+	});
 
 	const initialState = {
 		name: "",
 		email: "",
 		password: "",
-		profile: "user"
+		profile: "user",
+		companyId: companyId || 1
 	};
 
 	const { user: loggedInUser } = useContext(AuthContext);
@@ -88,7 +91,8 @@ const UserModal = ({ open, onClose, userId }) => {
 	const [user, setUser] = useState(initialState);
 	const [selectedQueueIds, setSelectedQueueIds] = useState([]);
 	const [showPassword, setShowPassword] = useState(false);
-	const [whatsappId, setWhatsappId] = useState(false);
+	const [whatsappId, setWhatsappId] = useState("");
+	const [companies, setCompanies] = useState([]);
 	const {loading, whatsApps} = useWhatsApps();
 
 	useEffect(() => {
@@ -107,8 +111,19 @@ const UserModal = ({ open, onClose, userId }) => {
 			}
 		};
 
+		const fetchCompanies = async () => {
+			if (loggedInUser.profile !== "superadmin") return;
+			try {
+				const { data } = await api.get("/companies");
+				setCompanies(data);
+			} catch (err) {
+				toastError(err);
+			}
+		};
+
 		fetchUser();
-	}, [userId, open]);
+		fetchCompanies();
+	}, [userId, open, loggedInUser.profile]);
 
 	const handleClose = () => {
 		onClose();
@@ -116,7 +131,11 @@ const UserModal = ({ open, onClose, userId }) => {
 	};
 
 	const handleSaveUser = async values => {
-		const userData = { ...values, whatsappId, queueIds: selectedQueueIds };
+		const userData = { 
+			...values, 
+			whatsappId: whatsappId === "" ? null : whatsappId, 
+			queueIds: selectedQueueIds 
+		};
 		try {
 			if (userId) {
 				await api.put(`/users/${userId}`, userData);
@@ -229,40 +248,64 @@ const UserModal = ({ open, onClose, userId }) => {
 													>
 														<MenuItem value="admin">Admin</MenuItem>
 														<MenuItem value="user">User</MenuItem>
+														{loggedInUser.profile === "superadmin" && (
+															<MenuItem value="superadmin">Super Admin</MenuItem>
+														)}
 													</Field>
 												</>
 											)}
 										/>
 									</FormControl>
 								</div>
-								<Can
-									role={loggedInUser.profile}
-									perform="user-modal:editQueues"
-									yes={() => (
-										<QueueSelect
-											selectedQueueIds={selectedQueueIds}
-											onChange={values => setSelectedQueueIds(values)}
-										/>
-									)}
-								/>
+								{loggedInUser.profile !== "superadmin" && (
+									<Can
+										role={loggedInUser.profile}
+										perform="user-modal:editQueues"
+										yes={() => (
+											<QueueSelect
+												selectedQueueIds={selectedQueueIds}
+												onChange={values => setSelectedQueueIds(values)}
+											/>
+										)}
+									/>
+								)}
 								<Can
 									role={loggedInUser.profile}
 									perform="user-modal:editQueues"
 									yes={() => (!loading &&
-										<FormControl variant="outlined" margin="dense" className={classes.maxWidth} fullWidth>
-											<InputLabel>{i18n.t("userModal.form.whatsapp")}</InputLabel>
-											<Field
-												as={Select}
-												value={whatsappId}
-												onChange={(e) => setWhatsappId(e.target.value)}
-												label={i18n.t("userModal.form.whatsapp")}
-											>
-												<MenuItem value={''}>&nbsp;</MenuItem>
-												{whatsApps.map((whatsapp) => (
-													<MenuItem key={whatsapp.id} value={whatsapp.id}>{whatsapp.name}</MenuItem>
-												))}
-											</Field>
-										</FormControl>
+										<div className={classes.multFieldLine}>
+											{loggedInUser.profile !== "superadmin" && (
+												<FormControl variant="outlined" margin="dense" className={classes.maxWidth} fullWidth>
+													<InputLabel>{i18n.t("userModal.form.whatsapp")}</InputLabel>
+													<Field
+														as={Select}
+														value={whatsappId}
+														onChange={(e) => setWhatsappId(e.target.value)}
+														label={i18n.t("userModal.form.whatsapp")}
+													>
+														<MenuItem value={''}>&nbsp;</MenuItem>
+														{whatsApps.map((whatsapp) => (
+															<MenuItem key={whatsapp.id} value={whatsapp.id}>{whatsapp.name}</MenuItem>
+														))}
+													</Field>
+												</FormControl>
+											)}
+											{loggedInUser.profile === "superadmin" && (
+												<FormControl variant="outlined" margin="dense" className={classes.maxWidth} fullWidth>
+													<InputLabel>Empresa</InputLabel>
+													<Field
+														as={Select}
+														name="companyId"
+														label="Empresa"
+													>
+														<MenuItem value={1}>Empresa Principal</MenuItem>
+														{companies.map((c) => (
+															<MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>
+														))}
+													</Field>
+												</FormControl>
+											)}
+										</div>
 									)}
 								/>
 							</DialogContent>

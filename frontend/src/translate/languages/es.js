@@ -230,7 +230,7 @@ const messages = {
         },
       },
       ticketsQueueSelect: {
-        placeholder: "Linhas",
+        placeholder: "Departamentos",
       },
       tickets: {
         toasts: {
@@ -255,9 +255,9 @@ const messages = {
       transferTicketModal: {
         title: "Transferir Ticket",
         fieldLabel: "Escriba para buscar usuarios",
-        fieldQueueLabel: "Transferir a la cola",
+        fieldQueueLabel: "Transferir al departamento",
         fieldConnectionLabel: "Transferir to conexión",
-        fieldQueuePlaceholder: "Seleccione una cola",
+        fieldQueuePlaceholder: "Seleccione un departamento",
         fieldConnectionPlaceholder: "Seleccione una conexión",
         noOptions: "No se encontraron usuarios con ese nombre",
         buttons: {
@@ -292,7 +292,8 @@ const messages = {
           tickets: "Tickets",
           contacts: "Contactos",
           quickAnswers: "Respuestas rápidas",
-          queues: "Linhas",
+          queues: "Departamentos",
+          schedules: "Programación",
           administration: "Administración",
           users: "Usuarios",
           settings: "Configuración",
@@ -308,7 +309,7 @@ const messages = {
         noTickets: "Sin notificaciones.",
       },
       queues: {
-        title: "Linhas",
+        title: "Departamentos",
         table: {
           name: "Nombre",
           color: "Color",
@@ -316,16 +317,16 @@ const messages = {
           actions: "Comportamiento",
         },
         buttons: {
-          add: "Agregar cola",
+          add: "Agregar departamento",
         },
         confirmationModal: {
           deleteTitle: "Eliminar",
           deleteMessage:
-            "¿Estás seguro? ¡Esta acción no se puede revertir! Los tickets en esa cola seguirán existiendo, pero ya no tendrán ninguna cola asignada.",
+            "¿Estás seguro? ¡Esta acción no se puede revertir! Los tickets en ese departamento seguirán existiendo, pero ya no tendrán ningún departamento asignado.",
         },
       },
       queueSelect: {
-        inputLabel: "Linhas",
+        inputLabel: "Departamentos",
       },
       quickAnswers: {
         title: "Respuestas rápidas",
@@ -365,7 +366,7 @@ const messages = {
         confirmationModal: {
           deleteTitle: "Borrar",
           deleteMessage:
-            "Toda la información del usuario se perderá. Los tickets abiertos de los usuarios se moverán a la cola.",
+            "Toda la información del usuario se perderá. Los tickets abiertos de los usuarios se moverán al departamento.",
         },
       },
       settings: {
@@ -466,9 +467,48 @@ const messages = {
         ERR_FETCH_WAPP_MSG:
           "Error al obtener el mensaje en WhtasApp, tal vez sea demasiado antiguo.",
         ERR_QUEUE_COLOR_ALREADY_EXISTS:
-          "Este color ya está en uso, elija otro.",
+          "Este color ya está en uso por otro departamento, elija otro.",
         ERR_WAPP_GREETING_REQUIRED:
-          "El mensaje de saludo es obligatorio cuando hay más de una cola.",
+          "El mensaje de saludo es obligatorio cuando hay más de un departamento.",
+      },
+      schedules: {
+        title: "Programación",
+        table: {
+          contact: "Contacto",
+          body: "Mensaje",
+          sendAt: "Fecha Programada",
+          sentAt: "Fecha de Envío",
+          status: "Estado",
+          actions: "Acciones"
+        },
+        buttons: {
+          add: "Agregar Programación"
+        },
+        toasts: {
+          deleted: "Programación eliminada correctamente"
+        },
+        searchPlaceholder: "Buscar...",
+        confirmationModal: {
+          deleteTitle: "¿Desea eliminar este mensaje programado?",
+          deleteMessage: "Esta acción no se puede deshacer."
+        }
+      },
+      schedulesModal: {
+        title: {
+          add: "Programar Mensaje",
+          edit: "Editar Mensaje Programado"
+        },
+        form: {
+          contact: "Contacto",
+          body: "Mensaje",
+          sendAt: "Fecha y Hora"
+        },
+        buttons: {
+          okAdd: "Programar",
+          okEdit: "Guardar",
+          cancel: "Cancelar"
+        },
+        success: "Mensaje programado con éxito."
       },
     },
   },

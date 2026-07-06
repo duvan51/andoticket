@@ -5,6 +5,7 @@ import { getIO } from "../../libs/socket";
 import Whatsapp from "../../models/Whatsapp";
 import { logger } from "../../utils/logger";
 import { StartWhatsAppSession } from "./StartWhatsAppSession";
+import { removeWbot } from "../../libs/wbot";
 
 interface Session extends Client {
   id?: number;
@@ -55,18 +56,19 @@ const wbotMonitor = async (
     wbot.on("disconnected", async reason => {
       logger.info(`Disconnected session: ${sessionName}, reason: ${reason}`);
       try {
-        await whatsapp.update({ status: "OPENING", session: "" });
+        await whatsapp.destroy();
+        logger.info(`WhatsApp connection bd_${whatsapp.id} deleted from database due to phone disconnection.`);
       } catch (err) {
         Sentry.captureException(err);
-        logger.error(err);
+        logger.error(`Error deleting WhatsApp connection: ${err}`);
       }
 
-      io.emit("whatsappSession", {
-        action: "update",
-        session: whatsapp
-      });
+      await removeWbot(whatsapp.id);
 
-      setTimeout(() => StartWhatsAppSession(whatsapp), 2000);
+      io.emit("whatsapp", {
+        action: "delete",
+        whatsappId: whatsapp.id
+      });
     });
   } catch (err) {
     Sentry.captureException(err);

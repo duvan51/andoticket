@@ -6,7 +6,7 @@ const DeleteContactService = async (id: string, companyId: number): Promise<void
     where: { id }
   });
 
-  if (!contact || (companyId !== 1 && contact.companyId !== companyId)) {
+  if (!contact || contact.companyId !== companyId) {
     throw new AppError("ERR_NO_CONTACT_FOUND", 404);
   }
 

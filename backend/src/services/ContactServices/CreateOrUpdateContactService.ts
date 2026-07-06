@@ -30,30 +30,45 @@ const CreateOrUpdateContactService = async ({
   const io = getIO();
   let contact: Contact | null;
 
-  contact = await Contact.findOne({ where: { number, companyId } });
-
-  if (contact) {
-    contact.update({ profilePicUrl });
-
-    io.emit("contact", {
-      action: "update",
-      contact
-    });
-  } else {
-    contact = await Contact.create({
-      name,
-      number,
-      profilePicUrl,
-      email,
-      isGroup,
-      extraInfo,
-      companyId
+  try {
+    // Usar findOrCreate para evitar race conditions
+    const [contactRecord, created] = await Contact.findOrCreate({
+      where: { number, companyId },
+      defaults: {
+        name,
+        number,
+        profilePicUrl,
+        email,
+        isGroup,
+        extraInfo,
+        companyId
+      }
     });
 
-    io.emit("contact", {
-      action: "create",
-      contact
-    });
+    contact = contactRecord;
+
+    if (created) {
+      io.emit("contact", {
+        action: "create",
+        contact
+      });
+    } else {
+      // Si ya existía, actualizar profilePicUrl si es diferente
+      if (profilePicUrl && contact.profilePicUrl !== profilePicUrl) {
+        await contact.update({ profilePicUrl });
+      }
+
+      io.emit("contact", {
+        action: "update",
+        contact
+      });
+    }
+  } catch (error: any) {
+    // En caso de cualquier otro error, intentar encontrar el contacto
+    contact = await Contact.findOne({ where: { number, companyId } });
+    if (!contact) {
+      throw error;
+    }
   }
 
   return contact;

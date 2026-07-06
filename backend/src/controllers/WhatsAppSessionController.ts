@@ -1,10 +1,15 @@
 import { Request, Response } from "express";
-import { getWbot } from "../libs/wbot";
+import { getWbot, removeWbot } from "../libs/wbot";
 import ShowWhatsAppService from "../services/WhatsappService/ShowWhatsAppService";
 import { StartWhatsAppSession } from "../services/WbotServices/StartWhatsAppSession";
 import UpdateWhatsAppService from "../services/WhatsappService/UpdateWhatsAppService";
+import AppError from "../errors/AppError";
 
 const store = async (req: Request, res: Response): Promise<Response> => {
+  if (req.user.profile !== "admin" && req.user.profile !== "superadmin") {
+    throw new AppError("ERR_NO_PERMISSION", 403);
+  }
+
   const { whatsappId } = req.params;
   const { companyId } = req.user;
   const whatsapp = await ShowWhatsAppService(whatsappId, companyId);
@@ -15,6 +20,10 @@ const store = async (req: Request, res: Response): Promise<Response> => {
 };
 
 const update = async (req: Request, res: Response): Promise<Response> => {
+  if (req.user.profile !== "admin" && req.user.profile !== "superadmin") {
+    throw new AppError("ERR_NO_PERMISSION", 403);
+  }
+
   const { whatsappId } = req.params;
   const { companyId } = req.user;
 
@@ -30,13 +39,28 @@ const update = async (req: Request, res: Response): Promise<Response> => {
 };
 
 const remove = async (req: Request, res: Response): Promise<Response> => {
+  if (req.user.profile !== "admin" && req.user.profile !== "superadmin") {
+    throw new AppError("ERR_NO_PERMISSION", 403);
+  }
+
   const { whatsappId } = req.params;
   const { companyId } = req.user;
   const whatsapp = await ShowWhatsAppService(whatsappId, companyId);
 
-  const wbot = getWbot(whatsapp.id);
+  try {
+    const wbot = getWbot(whatsapp.id);
+    await wbot.logout();
+  } catch (err) {
+    // If bot not found or error on logout, just proceed to cleanup
+  }
 
-  wbot.logout();
+  await removeWbot(whatsapp.id);
+
+  await whatsapp.update({
+    status: "DISCONNECTED",
+    session: "",
+    qrcode: ""
+  });
 
   return res.status(200).json({ message: "Session disconnected." });
 };

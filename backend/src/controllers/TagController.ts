@@ -7,9 +7,9 @@ import SyncTicketTagsService from "../services/TagServices/SyncTicketTagsService
 
 export const store = async (req: Request, res: Response): Promise<Response> => {
     const { name, color } = req.body;
-    const { id: userId } = req.user;
+    const { id: userId, companyId } = req.user;
 
-    const tag = await CreateTagService({ name, color, userId: Number(userId) });
+    const tag = await CreateTagService({ name, color, userId: Number(userId), companyId });
 
     return res.status(200).json(tag);
 };

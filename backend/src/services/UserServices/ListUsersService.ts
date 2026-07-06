@@ -33,7 +33,7 @@ const ListUsersService = async ({
     ]
   };
 
-  if (companyId && companyId !== 1) {
+  if (companyId) {
     whereCondition["companyId"] = companyId;
   }
   const limit = 20;

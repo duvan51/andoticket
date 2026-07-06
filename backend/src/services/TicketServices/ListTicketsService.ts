@@ -8,6 +8,8 @@ import Queue from "../../models/Queue";
 import ShowUserService from "../UserServices/ShowUserService";
 import Whatsapp from "../../models/Whatsapp";
 import Tag from "../../models/Tag";
+import TicketTracking from "../../models/TicketTracking";
+import User from "../../models/User";
 
 interface Request {
   searchParam?: string;
@@ -20,6 +22,7 @@ interface Request {
   queueIds: number[];
   tagId?: string;
   unanswered?: string;
+  isInternal?: string;
   companyId?: number;
 }
 
@@ -40,19 +43,46 @@ const ListTicketsService = async ({
   withUnreadMessages,
   tagId,
   unanswered,
-  companyId
+  companyId,
+  isInternal
 }: Request): Promise<Response> => {
-  let whereCondition: Filterable["where"] = {
-    [Op.or]: [{ userId }, { status: "pending" }],
-    queueId: { [Op.or]: [queueIds, null] }
-  };
+  let whereCondition: Filterable["where"] = {};
 
-  if (companyId && companyId !== 1) {
+  if (showAll === "true") {
     whereCondition = {
-      ...whereCondition,
-      companyId
+      queueId: { [Op.or]: [queueIds, null] }
+    };
+    if (userId) {
+      whereCondition = {
+        ...whereCondition,
+        userId
+      };
+    }
+  } else {
+    whereCondition = {
+      [Op.or]: [{ userId }, { status: "pending" }],
+      queueId: { [Op.or]: [queueIds, null] }
     };
   }
+
+  if (!companyId) {
+    throw new Error("ERR_NO_COMPANY_ID");
+  }
+
+  if (isInternal === "true") {
+    whereCondition = {
+      ...whereCondition,
+      companyId,
+      "$contact.number$": { [Op.like]: "user_%" }
+    };
+  } else {
+    whereCondition = {
+      ...whereCondition,
+      companyId,
+      "$contact.number$": { [Op.notLike]: "user_%" }
+    };
+  }
+
   let includeCondition: Includeable[];
 
   includeCondition = [
@@ -70,7 +100,8 @@ const ListTicketsService = async ({
       model: Whatsapp,
       as: "whatsapp",
       attributes: ["name"],
-      where: companyId && companyId !== 1 ? { companyId } : undefined
+      where: companyId ? { companyId } : undefined,
+      required: false
     },
     {
       model: Tag,
@@ -78,12 +109,22 @@ const ListTicketsService = async ({
       attributes: ["id", "name", "color"],
       where: tagId ? { id: tagId } : undefined,
       required: tagId ? true : false
+    },
+    {
+      model: TicketTracking,
+      as: "trackings",
+      include: [{ model: User, as: "user", attributes: ["id", "name"] }]
+    },
+    {
+      model: Message,
+      as: "messages",
+      attributes: ["id", "body", "createdAt", "mediaType"],
+      where: { mediaType: ["note", "tag", "schedule_history"] },
+      required: false
     }
   ];
 
-  if (showAll === "true") {
-    whereCondition = { ...whereCondition, queueId: { [Op.or]: [queueIds, null] } };
-  }
+
 
   if (status) {
     whereCondition = {
@@ -146,21 +187,16 @@ const ListTicketsService = async ({
 
   if (withUnreadMessages === "true") {
     const user = await ShowUserService(userId);
-    const userQueueIds = user.queues.map(queue => queue.id);
+    const userQueueIds = user.queues?.map(queue => queue.id) || [];
 
     whereCondition = {
+      ...whereCondition,
       [Op.or]: [{ userId }, { status: "pending" }],
       queueId: { [Op.or]: [userQueueIds, null] },
       unreadMessages: { [Op.gt]: 0 }
     };
   }
 
-  if (companyId && companyId !== 1) {
-    whereCondition = {
-      ...whereCondition,
-      companyId
-    };
-  }
 
   if (status === "open") {
     whereCondition = {
@@ -178,7 +214,8 @@ const ListTicketsService = async ({
     distinct: true,
     limit,
     offset,
-    order: [["updatedAt", "DESC"]]
+    order: [["updatedAt", "DESC"]],
+    subQuery: false
   });
 
   const hasMore = count > offset + tickets.length;

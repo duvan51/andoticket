@@ -1,73 +1,129 @@
 import { Request, Response } from "express";
-import { Op, fn, col, literal } from "sequelize";
+import { Op, fn, col } from "sequelize";
 import TicketTracking from "../models/TicketTracking";
 import Ticket from "../models/Ticket";
 import User from "../models/User";
 import UserSessionLog from "../models/UserSessionLog";
+import AppError from "../errors/AppError";
 
 export const index = async (req: Request, res: Response): Promise<Response> => {
     try {
-        // Leads accepted by user
+        const { companyId } = req.user;
+        const { userId, startDate, endDate } = req.query;
+
+        // Construir filtro de fecha base
+        const dateFilter: any = {};
+        if (startDate || endDate) {
+            dateFilter[Op.and] = [];
+            if (startDate) {
+                dateFilter[Op.and].push({ [Op.gte]: new Date(startDate as string) });
+            }
+            if (endDate) {
+                const end = new Date(endDate as string);
+                end.setHours(23, 59, 59, 999);
+                dateFilter[Op.and].push({ [Op.lte]: end });
+            }
+        }
+
+        // 1. Leads aceptados por usuario (aislado por empresa)
+        const leadsByUserWhere: any = {};
+        if (userId) {
+            leadsByUserWhere.userId = userId;
+        } else {
+            leadsByUserWhere.userId = { [Op.ne]: null as any };
+        }
+
+        if (dateFilter[Op.and]) {
+            leadsByUserWhere.createdAt = dateFilter;
+        }
+
         const leadsByUser = await TicketTracking.findAll({
             attributes: [
                 "userId",
                 [fn("COUNT", col("TicketTracking.id")), "count"]
             ],
-            where: {
-                userId: { [Op.ne]: null as any }
-            },
-            include: [{ model: User, attributes: ["name"] }],
-            group: ["userId", "User.id", "User.name"] // Group by User.id/name is needed for include
+            where: leadsByUserWhere,
+            include: [{
+                model: User,
+                attributes: ["name"],
+                where: { companyId } // Aislamiento multi-tenant
+            }],
+            group: ["userId", "User.id", "User.name"]
         });
 
-        // New leads today/yesterday/etc
-        // Let's get leads for the last 7 days
-        const date7DaysAgo = new Date();
-        date7DaysAgo.setDate(date7DaysAgo.getDate() - 7);
+        // 2. Nuevos leads en los últimos 7 días o rango filtrado (aislado por empresa)
+        const ticketsWhere: any = { companyId };
+        if (userId) {
+            ticketsWhere.userId = userId;
+        }
+
+        if (dateFilter[Op.and]) {
+            ticketsWhere.createdAt = dateFilter;
+        } else {
+            const date7DaysAgo = new Date();
+            date7DaysAgo.setDate(date7DaysAgo.getDate() - 7);
+            ticketsWhere.createdAt = { [Op.gte]: date7DaysAgo };
+        }
 
         const newLeads = await Ticket.findAll({
             attributes: [
                 [fn("DATE", col("createdAt")), "date"],
                 [fn("COUNT", col("id")), "count"]
             ],
-            where: {
-                createdAt: {
-                    [Op.gte]: date7DaysAgo
-                }
-            },
+            where: ticketsWhere,
             group: [fn("DATE", col("createdAt"))],
             order: [[fn("DATE", col("createdAt")), "ASC"]]
         });
 
-        // User Session Time
-        // Fetch all sessions and sum them up
+        // 3. Tiempos de sesión de usuario (aislado por empresa)
+        const sessionsWhere: any = {
+            logoutAt: { [Op.ne]: null as any }
+        };
+
+        if (dateFilter[Op.and]) {
+            sessionsWhere.loginAt = dateFilter;
+        }
+
+        const userWhere: any = { companyId };
+        if (userId) {
+            userWhere.id = userId;
+        }
+
         const sessions = await UserSessionLog.findAll({
-            include: [{ model: User, attributes: ["name", "email"] }],
-            where: {
-                logoutAt: { [Op.ne]: null as any }
-            }
+            include: [{
+                model: User,
+                attributes: ["name", "email"],
+                where: userWhere // Aislamiento multi-tenant y filtro por usuario
+            }],
+            where: sessionsWhere
         });
 
-        // Process sessions to calculate total time per user
         const userTimes: Record<string, { name: string, seconds: number }> = {};
         sessions.forEach(session => {
-            const user = session.user;
-            if (!user) return;
+            const userObj = session.user;
+            if (!userObj) return;
 
-            if (!userTimes[user.id]) {
-                userTimes[user.id] = { name: user.name, seconds: 0 };
+            if (!userTimes[userObj.id]) {
+                userTimes[userObj.id] = { name: userObj.name, seconds: 0 };
             }
             const duration = (new Date(session.logoutAt).getTime() - new Date(session.loginAt).getTime()) / 1000;
-            userTimes[user.id].seconds += duration;
+            userTimes[userObj.id].seconds += duration;
+        });
+
+        // 4. Obtener listado de usuarios de la empresa para poblar dropdown de filtros en frontend
+        const companyUsers = await User.findAll({
+            where: { companyId },
+            attributes: ["id", "name"]
         });
 
         return res.json({
             leadsByUser,
             newLeads,
-            userTimes
+            userTimes,
+            companyUsers
         });
-    } catch (err) {
+    } catch (err: any) {
         console.error(err);
-        throw new Error(err);
+        return res.status(500).json({ error: err.message || "Internal server error" });
     }
 };

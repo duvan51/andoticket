@@ -26,12 +26,14 @@ const ListQuickAnswerService = async ({
     )
   };
 
-  if (companyId && companyId !== 1) {
-    whereCondition = {
-      ...whereCondition,
-      companyId
-    }
+  if (!companyId) {
+    throw new Error("ERR_NO_COMPANY_ID");
   }
+
+  whereCondition = {
+    ...whereCondition,
+    companyId
+  };
   const limit = 20;
   const offset = limit * (+pageNumber - 1);
 

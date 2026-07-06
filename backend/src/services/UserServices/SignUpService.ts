@@ -21,36 +21,31 @@ const SignUpService = async ({
 }: Request): Promise<User> => {
     console.log("SignUpService started:", { name, email, companyName, planId });
 
+    // Check if email already exists
+    let existingUser = null;
+    try {
+        existingUser = await User.findOne({ where: { email } });
+    } catch (dbError: any) {
+        console.error("Database error checking existing user:", dbError);
+        // Continue - this might be a transient error
+    }
+    
+    if (existingUser) {
+        throw new AppError("An user with this email already exists.", 400);
+    }
+
     const schema = Yup.object().shape({
         name: Yup.string().required().min(2),
         companyName: Yup.string().required().min(2),
-        email: Yup.string()
-            .email()
-            .required()
-            .test(
-                "Check-email",
-                "An user with this email already exists.",
-                async value => {
-                    if (!value) return false;
-                    try {
-                        const emailExists = await User.findOne({
-                            where: { email: value }
-                        });
-                        return !emailExists;
-                    } catch (e) {
-                        console.error("Error checking email existence:", e);
-                        return false;
-                    }
-                }
-            ),
+        email: Yup.string().email().required(),
         password: Yup.string().required().min(5)
     });
 
     try {
         await schema.validate({ email, password, name, companyName });
-    } catch (err) {
+    } catch (err: any) {
         console.error("Validation error:", err.message);
-        throw new AppError(err.message);
+        throw new AppError(err.message || "Validation failed", 400);
     }
 
     // Check if a default plan exists if planId is not provided
@@ -88,9 +83,10 @@ const SignUpService = async ({
         console.log("User created:", user.id);
 
         return user;
-    } catch (e) {
+    } catch (e: any) {
         console.error("Error during signup creation:", e);
-        throw new AppError("Error creating company or user: " + e.message);
+        const errorMessage = e?.message || JSON.stringify(e) || "Error creating company or user";
+        throw new AppError(errorMessage);
     }
 };
 

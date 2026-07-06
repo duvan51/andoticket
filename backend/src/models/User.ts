@@ -32,8 +32,11 @@ class User extends Model<User> {
   @Column
   name: string;
 
-  @Column
+  @Column(DataType.STRING)
   email: string;
+
+  @Column
+  googleId: string;
 
   @Column(DataType.VIRTUAL)
   password: string;

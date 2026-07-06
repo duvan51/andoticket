@@ -2,12 +2,16 @@ import { Request, Response } from "express";
 import { getIO } from "../libs/socket";
 import { removeWbot } from "../libs/wbot";
 import { StartWhatsAppSession } from "../services/WbotServices/StartWhatsAppSession";
+import AppError from "../errors/AppError";
 
 import CreateWhatsAppService from "../services/WhatsappService/CreateWhatsAppService";
 import DeleteWhatsAppService from "../services/WhatsappService/DeleteWhatsAppService";
 import ListWhatsAppsService from "../services/WhatsappService/ListWhatsAppsService";
 import ShowWhatsAppService from "../services/WhatsappService/ShowWhatsAppService";
 import UpdateWhatsAppService from "../services/WhatsappService/UpdateWhatsAppService";
+
+import { validate } from "../middleware/validate";
+import { whatsappSchema, whatsappUpdateSchema } from "../validators";
 
 interface WhatsappData {
   name: string;
@@ -25,47 +29,58 @@ export const index = async (req: Request, res: Response): Promise<Response> => {
   return res.status(200).json(whatsapps);
 };
 
-export const store = async (req: Request, res: Response): Promise<Response> => {
-  const {
-    name,
-    status,
-    isDefault,
-    greetingMessage,
-    farewellMessage,
-    queueIds
-  }: WhatsappData = req.body;
+export const store = [
+  validate(whatsappSchema),
+  async (req: Request, res: Response): Promise<Response> => {
+    if (req.user.profile !== "admin" && req.user.profile !== "superadmin") {
+      throw new AppError("ERR_NO_PERMISSION", 403);
+    }
 
-  const { companyId } = req.user;
+    const {
+      name,
+      status,
+      isDefault,
+      greetingMessage,
+      farewellMessage,
+      queueIds
+    } = req.body;
 
-  const { whatsapp, oldDefaultWhatsapp } = await CreateWhatsAppService({
-    name,
-    status,
-    isDefault,
-    greetingMessage,
-    farewellMessage,
-    queueIds,
-    companyId
-  });
+    const { companyId } = req.user;
 
-  StartWhatsAppSession(whatsapp);
+    const { whatsapp, oldDefaultWhatsapp } = await CreateWhatsAppService({
+      name,
+      status,
+      isDefault,
+      greetingMessage,
+      farewellMessage,
+      queueIds,
+      companyId
+    });
 
-  const io = getIO();
-  io.emit("whatsapp", {
-    action: "update",
-    whatsapp
-  });
+    // StartWhatsAppSession(whatsapp);
 
-  if (oldDefaultWhatsapp) {
+    const io = getIO();
     io.emit("whatsapp", {
       action: "update",
-      whatsapp: oldDefaultWhatsapp
+      whatsapp
     });
-  }
 
-  return res.status(200).json(whatsapp);
-};
+    if (oldDefaultWhatsapp) {
+      io.emit("whatsapp", {
+        action: "update",
+        whatsapp: oldDefaultWhatsapp
+      });
+    }
+
+    return res.status(200).json(whatsapp);
+  }
+];
 
 export const show = async (req: Request, res: Response): Promise<Response> => {
+  if (req.user.profile !== "admin" && req.user.profile !== "superadmin") {
+    throw new AppError("ERR_NO_PERMISSION", 403);
+  }
+
   const { whatsappId } = req.params;
 
   const { companyId } = req.user;
@@ -74,47 +89,55 @@ export const show = async (req: Request, res: Response): Promise<Response> => {
   return res.status(200).json(whatsapp);
 };
 
-export const update = async (
-  req: Request,
-  res: Response
-): Promise<Response> => {
-  const { whatsappId } = req.params;
-  const whatsappData = req.body;
+export const update = [
+  validate(whatsappUpdateSchema),
+  async (req: Request, res: Response): Promise<Response> => {
+    if (req.user.profile !== "admin" && req.user.profile !== "superadmin") {
+      throw new AppError("ERR_NO_PERMISSION", 403);
+    }
 
-  const { companyId } = req.user;
+    const { whatsappId } = req.params;
+    const whatsappData = req.body;
 
-  const { whatsapp, oldDefaultWhatsapp } = await UpdateWhatsAppService({
-    whatsappData,
-    whatsappId,
-    companyId
-  });
+    const { companyId } = req.user;
 
-  const io = getIO();
-  io.emit("whatsapp", {
-    action: "update",
-    whatsapp
-  });
+    const { whatsapp, oldDefaultWhatsapp } = await UpdateWhatsAppService({
+      whatsappData,
+      whatsappId,
+      companyId
+    });
 
-  if (oldDefaultWhatsapp) {
+    const io = getIO();
     io.emit("whatsapp", {
       action: "update",
-      whatsapp: oldDefaultWhatsapp
+      whatsapp
     });
-  }
 
-  return res.status(200).json(whatsapp);
-};
+    if (oldDefaultWhatsapp) {
+      io.emit("whatsapp", {
+        action: "update",
+        whatsapp: oldDefaultWhatsapp
+      });
+    }
+
+    return res.status(200).json(whatsapp);
+  }
+];
 
 export const remove = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
+  if (req.user.profile !== "admin" && req.user.profile !== "superadmin") {
+    throw new AppError("ERR_NO_PERMISSION", 403);
+  }
+
   const { whatsappId } = req.params;
 
   const { companyId } = req.user;
 
   await DeleteWhatsAppService(whatsappId, companyId);
-  removeWbot(+whatsappId);
+  await removeWbot(+whatsappId);
 
   const io = getIO();
   io.emit("whatsapp", {

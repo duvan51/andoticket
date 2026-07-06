@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState } from "react";
-import { Link as RouterLink } from "react-router-dom";
+import { Link as RouterLink, useLocation } from "react-router-dom";
 
 import ListItem from "@material-ui/core/ListItem";
 import ListItemIcon from "@material-ui/core/ListItemIcon";
@@ -18,6 +18,8 @@ import QuestionAnswerOutlinedIcon from "@material-ui/icons/QuestionAnswerOutline
 import LocalOfferOutlinedIcon from "@material-ui/icons/LocalOfferOutlined";
 import ViewColumnOutlinedIcon from "@material-ui/icons/ViewColumnOutlined";
 import ListIcon from "@material-ui/icons/List";
+import BusinessIcon from "@material-ui/icons/Business";
+import EventIcon from "@material-ui/icons/Event";
 
 import { i18n } from "../translate/i18n";
 import { WhatsAppsContext } from "../context/WhatsApp/WhatsAppsContext";
@@ -26,6 +28,8 @@ import { Can } from "../components/Can";
 
 function ListItemLink(props) {
   const { icon, primary, to, className } = props;
+  const location = useLocation();
+  const selected = location.pathname === to || (to !== "/" && location.pathname.startsWith(to));
 
   const renderLink = React.useMemo(
     () =>
@@ -37,7 +41,12 @@ function ListItemLink(props) {
 
   return (
     <li>
-      <ListItem button component={renderLink} className={className}>
+      <ListItem 
+        button 
+        component={renderLink} 
+        className={className}
+        selected={selected}
+      >
         {icon ? <ListItemIcon>{icon}</ListItemIcon> : null}
         <ListItemText primary={primary} />
       </ListItem>
@@ -80,14 +89,20 @@ const MainListItems = (props) => {
         primary="Dashboard"
         icon={<DashboardOutlinedIcon />}
       />
-      <ListItemLink
-        to="/connections"
-        primary={i18n.t("mainDrawer.listItems.connections")}
-        icon={
-          <Badge badgeContent={connectionWarning ? "!" : 0} color="error" overlap="rectangular">
-            <SyncAltIcon />
-          </Badge>
-        }
+      <Can
+        role={user.profile || ""}
+        perform="drawer-admin-items:view"
+        yes={() => (
+          <ListItemLink
+            to="/connections"
+            primary={i18n.t("mainDrawer.listItems.connections")}
+            icon={
+              <Badge badgeContent={connectionWarning ? "!" : 0} color="error" overlap="rectangular">
+                <SyncAltIcon />
+              </Badge>
+            }
+          />
+        )}
       />
       <ListItemLink
         to="/tickets"
@@ -106,6 +121,11 @@ const MainListItems = (props) => {
         icon={<QuestionAnswerOutlinedIcon />}
       />
       <ListItemLink
+        to="/schedules"
+        primary={i18n.t("mainDrawer.listItems.schedules")}
+        icon={<EventIcon />}
+      />
+      <ListItemLink
         to="/kanban"
         primary="Pipeline"
         icon={<ViewColumnOutlinedIcon />}
@@ -116,7 +136,7 @@ const MainListItems = (props) => {
         icon={<LocalOfferOutlinedIcon />}
       />
       <Can
-        role={user.profile}
+        role={user.profile || ""}
         perform="drawer-admin-items:view"
         yes={() => (
           <>
@@ -124,6 +144,13 @@ const MainListItems = (props) => {
             <ListSubheader inset>
               {i18n.t("mainDrawer.listItems.administration")}
             </ListSubheader>
+            {user.profile === "superadmin" && (
+              <ListItemLink
+                to="/companies"
+                primary="Empresas"
+                icon={<BusinessIcon />}
+              />
+            )}
             <ListItemLink
               to="/users"
               primary={i18n.t("mainDrawer.listItems.users")}
@@ -139,7 +166,7 @@ const MainListItems = (props) => {
               primary={i18n.t("mainDrawer.listItems.settings")}
               icon={<SettingsOutlinedIcon />}
             />
-            {user.companyId === 1 && (
+            {user.profile === "superadmin" && (
               <ListItemLink
                 to="/plans"
                 primary="Planes"

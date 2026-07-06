@@ -18,7 +18,7 @@ const ShowWhatsAppService = async (id: string | number, companyId?: number): Pro
     throw new AppError("ERR_NO_WAPP_FOUND", 404);
   }
 
-  if (companyId && companyId !== 1 && whatsapp.companyId !== companyId) {
+  if (companyId && whatsapp.companyId !== companyId) {
     throw new AppError("ERR_NO_WAPP_FOUND", 404);
   }
 

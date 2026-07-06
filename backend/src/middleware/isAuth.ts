@@ -27,7 +27,7 @@ const isAuth = (req: Request, res: Response, next: NextFunction): void => {
     const { id, profile, companyId } = decoded as TokenPayload;
 
     req.user = {
-      id,
+      id: parseInt(id, 10),
       profile,
       companyId
     };

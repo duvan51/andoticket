@@ -12,7 +12,7 @@ const useStyles = makeStyles((theme) => ({
     backgroundColor: "#eee",
     flex: "none",
     borderBottom: "1px solid rgba(0, 0, 0, 0.12)",
-    [theme.breakpoints.down("sm")]: {
+    [theme.breakpoints.down("xs")]: {
       flexWrap: "wrap",
     },
   },
@@ -31,7 +31,7 @@ const TicketHeader = ({ loading, children }) => {
         <TicketHeaderSkeleton />
       ) : (
         <Card square className={classes.ticketHeader}>
-          <Button color="primary" onClick={handleBack}>
+          <Button color="primary" onClick={handleBack} style={{ padding: "4px 8px", minWidth: "auto" }}>
             <ArrowBackIos />
           </Button>
           {children}

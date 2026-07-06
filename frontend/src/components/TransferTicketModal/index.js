@@ -64,29 +64,22 @@ const TransferTicketModal = ({ modalOpen, onClose, ticketid, ticketWhatsappId })
 	}, []);
 
 	useEffect(() => {
-		if (!modalOpen || searchParam.length < 3) {
-			setLoading(false);
-			return;
-		}
-		setLoading(true);
-		const delayDebounceFn = setTimeout(() => {
-			const fetchUsers = async () => {
-				try {
-					const { data } = await api.get("/users/", {
-						params: { searchParam },
-					});
-					setOptions(data.users);
-					setLoading(false);
-				} catch (err) {
-					setLoading(false);
-					toastError(err);
-				}
-			};
+		if (!modalOpen) return;
+		
+		const fetchUsers = async () => {
+			setLoading(true);
+			try {
+				const { data } = await api.get("/users/");
+				setOptions(data.users);
+				setLoading(false);
+			} catch (err) {
+				setLoading(false);
+				toastError(err);
+			}
+		};
 
-			fetchUsers();
-		}, 500);
-		return () => clearTimeout(delayDebounceFn);
-	}, [searchParam, modalOpen]);
+		fetchUsers();
+	}, [modalOpen]);
 
 	const handleClose = () => {
 		onClose();
@@ -97,6 +90,7 @@ const TransferTicketModal = ({ modalOpen, onClose, ticketid, ticketWhatsappId })
 	const handleSaveTicket = async e => {
 		e.preventDefault();
 		if (!ticketid) return;
+		if (!selectedUser && !selectedQueue && !selectedWhatsapp) return;
 		setLoading(true);
 		try {
 			let data = {};
@@ -149,7 +143,6 @@ const TransferTicketModal = ({ modalOpen, onClose, ticketid, ticketWhatsappId })
 						}}
 						options={options}
 						filterOptions={filterOptions}
-						freeSolo
 						autoHighlight
 						noOptionsText={i18n.t("transferTicketModal.noOptions")}
 						loading={loading}
@@ -158,9 +151,7 @@ const TransferTicketModal = ({ modalOpen, onClose, ticketid, ticketWhatsappId })
 								{...params}
 								label={i18n.t("transferTicketModal.fieldLabel")}
 								variant="outlined"
-								required
 								autoFocus
-								onChange={e => setSearchParam(e.target.value)}
 								InputProps={{
 									...params.InputProps,
 									endAdornment: (
@@ -188,24 +179,20 @@ const TransferTicketModal = ({ modalOpen, onClose, ticketid, ticketWhatsappId })
 							))}
 						</Select>
 					</FormControl>
-					<Can
-						role={loggedInUser.profile}
-						perform="ticket-options:transferWhatsapp"
-						yes={() => (!loadingWhatsapps && 
-							<FormControl variant="outlined" className={classes.maxWidth} style={{ marginTop: 20 }}>
-								<InputLabel>{i18n.t("transferTicketModal.fieldConnectionLabel")}</InputLabel>
-								<Select
-									value={selectedWhatsapp}
-									onChange={(e) => setSelectedWhatsapp(e.target.value)}
-									label={i18n.t("transferTicketModal.fieldConnectionPlaceholder")}
-								>
-									{whatsApps.map((whasapp) => (
-										<MenuItem key={whasapp.id} value={whasapp.id}>{whasapp.name}</MenuItem>
-									))}
-								</Select>
-							</FormControl>
-						)}
-					/>
+					{!loadingWhatsapps && (
+						<FormControl variant="outlined" className={classes.maxWidth} style={{ marginTop: 20 }}>
+							<InputLabel>{i18n.t("transferTicketModal.fieldConnectionLabel")}</InputLabel>
+							<Select
+								value={selectedWhatsapp}
+								onChange={(e) => setSelectedWhatsapp(e.target.value)}
+								label={i18n.t("transferTicketModal.fieldConnectionPlaceholder")}
+							>
+								{whatsApps.map((whasapp) => (
+									<MenuItem key={whasapp.id} value={whasapp.id}>{whasapp.name}</MenuItem>
+								))}
+							</Select>
+						</FormControl>
+					)}
 				</DialogContent>
 				<DialogActions>
 					<Button

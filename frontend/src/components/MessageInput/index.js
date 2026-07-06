@@ -19,6 +19,7 @@ import ClearIcon from "@material-ui/icons/Clear";
 import MicIcon from "@material-ui/icons/Mic";
 import CheckCircleOutlineIcon from "@material-ui/icons/CheckCircleOutline";
 import HighlightOffIcon from "@material-ui/icons/HighlightOff";
+import ScheduleIcon from "@material-ui/icons/Schedule";
 import {
   FormControlLabel,
   Hidden,
@@ -31,6 +32,7 @@ import ClickAwayListener from "@material-ui/core/ClickAwayListener";
 import { i18n } from "../../translate/i18n";
 import api from "../../services/api";
 import RecordingTimer from "./RecordingTimer";
+import SchedulesModal from "../SchedulesModal";
 import { ReplyMessageContext } from "../../context/ReplyingMessage/ReplyingMessageContext";
 import { AuthContext } from "../../context/Auth/AuthContext";
 import { useLocalStorage } from "../../hooks/useLocalStorage";
@@ -213,12 +215,13 @@ const useStyles = makeStyles(theme => ({
   },
 }));
 
-const MessageInput = ({ ticketStatus }) => {
+const MessageInput = ({ ticketStatus, ticket }) => {
   const classes = useStyles();
   const { ticketId } = useParams();
 
   const [medias, setMedias] = useState([]);
   const [inputMessage, setInputMessage] = useState("");
+  const [isNote, setIsNote] = useState(false);
   const [showEmoji, setShowEmoji] = useState(false);
   const [loading, setLoading] = useState(false);
   const [recording, setRecording] = useState(false);
@@ -231,6 +234,7 @@ const MessageInput = ({ ticketStatus }) => {
   const { user } = useContext(AuthContext);
 
   const [signMessage, setSignMessage] = useLocalStorage("signOption", true);
+  const [schedulesModalOpen, setSchedulesModalOpen] = useState(false);
 
   useEffect(() => {
     inputRef.current.focus();
@@ -305,10 +309,11 @@ const MessageInput = ({ ticketStatus }) => {
       read: 1,
       fromMe: true,
       mediaUrl: "",
-      body: signMessage
-        ? `*${user?.name}:*\n${inputMessage.trim()}`
-        : inputMessage.trim(),
+      body: isNote
+        ? inputMessage.trim()
+        : (signMessage ? `*${user?.name}:*\n${inputMessage.trim()}` : inputMessage.trim()),
       quotedMsg: replyingMessage,
+      isNote: isNote,
     };
     try {
       await api.post(`/messages/${ticketId}`, message);
@@ -320,6 +325,7 @@ const MessageInput = ({ ticketStatus }) => {
     setShowEmoji(false);
     setLoading(false);
     setReplyingMessage(null);
+    setIsNote(false);
   };
 
   const handleStartRecording = async () => {
@@ -472,6 +478,21 @@ const MessageInput = ({ ticketStatus }) => {
   else {
     return (
       <Paper square elevation={0} className={classes.mainWrapper}>
+        <SchedulesModal
+          open={schedulesModalOpen}
+          onClose={() => setSchedulesModalOpen(false)}
+          initialValues={{
+            body: inputMessage,
+            contactId: ticket?.contactId,
+            contact: ticket?.contact,
+            ticketId: ticket?.id
+          }}
+          onSave={() => {
+            setInputMessage("");
+            setReplyingMessage(null);
+            setIsNote(false);
+          }}
+        />
         {replyingMessage && renderReplyingMessage(replyingMessage)}
         <div className={classes.newMessageBox}>
           <Hidden only={["sm", "xs"]}>
@@ -526,6 +547,22 @@ const MessageInput = ({ ticketStatus }) => {
                   }}
                   name="showAllTickets"
                   color="primary"
+                />
+              }
+            />
+            <FormControlLabel
+              style={{ marginRight: 7, color: "gray" }}
+              label="Nota Interna"
+              labelPlacement="start"
+              control={
+                <Switch
+                  size="small"
+                  checked={isNote}
+                  onChange={e => {
+                    setIsNote(e.target.checked);
+                  }}
+                  name="isNote"
+                  color="secondary"
                 />
               }
             />
@@ -592,6 +629,24 @@ const MessageInput = ({ ticketStatus }) => {
                   }
                 />
               </MenuItem>
+              <MenuItem onClick={handleMenuItemClick}>
+                <FormControlLabel
+                  style={{ marginRight: 7, color: "gray" }}
+                  label="Nota Interna"
+                  labelPlacement="start"
+                  control={
+                    <Switch
+                      size="small"
+                      checked={isNote}
+                      onChange={e => {
+                        setIsNote(e.target.checked);
+                      }}
+                      name="isNote"
+                      color="secondary"
+                    />
+                  }
+                />
+              </MenuItem>
             </Menu>
           </Hidden>
           <div className={classes.messageInputWrapper}>
@@ -602,9 +657,11 @@ const MessageInput = ({ ticketStatus }) => {
               }}
               className={classes.messageInput}
               placeholder={
-                ticketStatus === "open"
-                  ? i18n.t("messagesInput.placeholderOpen")
-                  : i18n.t("messagesInput.placeholderClosed")
+                isNote
+                  ? "Escribe una nota interna (sólo visible para la empresa)..."
+                  : (ticketStatus === "open"
+                    ? i18n.t("messagesInput.placeholderOpen")
+                    : i18n.t("messagesInput.placeholderClosed"))
               }
               multiline
               maxRows={5}
@@ -642,14 +699,26 @@ const MessageInput = ({ ticketStatus }) => {
             )}
           </div>
           {inputMessage ? (
-            <IconButton
-              aria-label="sendMessage"
-              component="span"
-              onClick={handleSendMessage}
-              disabled={loading}
-            >
-              <SendIcon className={classes.sendMessageIcons} />
-            </IconButton>
+            <>
+              {ticket && ticket.id && (
+                <IconButton
+                  aria-label="scheduleMessage"
+                  component="span"
+                  onClick={() => setSchedulesModalOpen(true)}
+                  disabled={loading}
+                >
+                  <ScheduleIcon className={classes.sendMessageIcons} />
+                </IconButton>
+              )}
+              <IconButton
+                aria-label="sendMessage"
+                component="span"
+                onClick={handleSendMessage}
+                disabled={loading}
+              >
+                <SendIcon className={classes.sendMessageIcons} />
+              </IconButton>
+            </>
           ) : recording ? (
             <div className={classes.recorderWrapper}>
               <IconButton

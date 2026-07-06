@@ -16,6 +16,8 @@ import TicketTracking from "../models/TicketTracking";
 import UserSessionLog from "../models/UserSessionLog";
 import Company from "../models/Company";
 import Plan from "../models/Plan";
+import ScheduledMessage from "../models/ScheduledMessage";
+import QueueOption from "../models/QueueOption";
 
 // eslint-disable-next-line
 const dbConfig = require("../config/database");
@@ -40,7 +42,9 @@ const models = [
   TicketTracking,
   UserSessionLog,
   Company,
-  Plan
+  Plan,
+  ScheduledMessage,
+  QueueOption
 ];
 
 sequelize.addModels(models);

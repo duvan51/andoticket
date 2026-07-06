@@ -153,7 +153,7 @@ const reducer = (state, action) => {
 };
 
 	const TicketsList = (props) => {
-		const { status, searchParam, showAll, selectedQueueIds, updateCount, style, tagId, unanswered } =
+		const { status, searchParam, showAll, selectedQueueIds, updateCount, style, tagId, unanswered, userId } =
 			props;
 	const classes = useStyles();
 	const [pageNumber, setPageNumber] = useState(1);
@@ -163,7 +163,7 @@ const reducer = (state, action) => {
 	useEffect(() => {
 		dispatch({ type: "RESET" });
 		setPageNumber(1);
-	}, [status, searchParam, dispatch, showAll, selectedQueueIds, tagId, unanswered]);
+	}, [status, searchParam, dispatch, showAll, selectedQueueIds, tagId, unanswered, userId]);
 
 	const { tickets, hasMore, loading } = useTickets({
 		pageNumber,
@@ -172,7 +172,8 @@ const reducer = (state, action) => {
 		showAll,
 		queueIds: JSON.stringify(selectedQueueIds),
 		tagId,
-		unanswered
+		unanswered,
+		userId
 	});
 
 	useEffect(() => {
@@ -190,6 +191,7 @@ const reducer = (state, action) => {
 			if (searchParam) return false;
 			if (showAll) {
 				if (ticket.queueId && selectedQueueIds.indexOf(ticket.queueId) === -1) return false;
+				if (userId && ticket.userId !== parseInt(userId, 10)) return false;
 			} else {
 				if (ticket.userId && ticket.userId !== user?.id) return false;
 				if (ticket.queueId && selectedQueueIds.indexOf(ticket.queueId) === -1) return false;

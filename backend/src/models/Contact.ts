@@ -28,7 +28,7 @@ class Contact extends Model<Contact> {
   name: string;
 
   @AllowNull(false)
-  @Unique
+  @Unique("number_companyId_unique")
   @Column
   number: string;
 
@@ -52,6 +52,7 @@ class Contact extends Model<Contact> {
   updatedAt: Date;
 
   @ForeignKey(() => Company)
+  @Unique("number_companyId_unique")
   @Column
   companyId: number;
 

@@ -1,4 +1,5 @@
-import React, { useState, useCallback, useContext } from "react";
+import React, { useState, useCallback, useContext, useEffect } from "react";
+import { useHistory } from "react-router-dom";
 import { toast } from "react-toastify";
 import { format, parseISO } from "date-fns";
 
@@ -25,6 +26,8 @@ import {
 	SignalCellular4Bar,
 	CropFree,
 	DeleteOutline,
+	Schedule,
+	ErrorOutline,
 } from "@material-ui/icons";
 
 import MainContainer from "../../components/MainContainer";
@@ -39,6 +42,7 @@ import ConfirmationModal from "../../components/ConfirmationModal";
 import QrcodeModal from "../../components/QrcodeModal";
 import { i18n } from "../../translate/i18n";
 import { WhatsAppsContext } from "../../context/WhatsApp/WhatsAppsContext";
+import { AuthContext } from "../../context/Auth/AuthContext";
 import toastError from "../../errors/toastError";
 
 const useStyles = makeStyles(theme => ({
@@ -94,6 +98,14 @@ const CustomToolTip = ({ title, content, children }) => {
 
 const Connections = () => {
 	const classes = useStyles();
+	const history = useHistory();
+	const { user } = useContext(AuthContext);
+
+	useEffect(() => {
+		if (user && user.profile !== "admin" && user.profile !== "superadmin") {
+			history.push("/");
+		}
+	}, [user, history]);
 
 	const { whatsApps, loading } = useContext(WhatsAppsContext);
 	const [whatsAppModalOpen, setWhatsAppModalOpen] = useState(false);
@@ -128,17 +140,17 @@ const Connections = () => {
 		}
 	};
 
-	const handleOpenWhatsAppModal = async () => {
-		setSelectedWhatsApp(null);
+    const handleDisconnectWhatsApp = async whatsAppId => {
 		try {
-			const { data } = await api.post("/whatsapp", {
-				name: `${i18n.t("connections.buttons.add")} ${new Date().getTime()}`,
-			});
-			setSelectedWhatsApp(data);
-			setQrModalOpen(true);
+			await api.delete(`/whatsappsession/${whatsAppId}`);
 		} catch (err) {
 			toastError(err);
 		}
+	};
+
+	const handleOpenWhatsAppModal = () => {
+		setSelectedWhatsApp(null);
+        setWhatsAppModalOpen(true);
 	};
 
 	const handleCloseWhatsAppModal = useCallback(() => {
@@ -149,6 +161,11 @@ const Connections = () => {
 	const handleOpenQrModal = whatsApp => {
 		setSelectedWhatsApp(whatsApp);
 		setQrModalOpen(true);
+		if (whatsApp.status === "DISCONNECTED" || whatsApp.status === "TIMEOUT" || whatsApp.status === "PAIRING" || !whatsApp.status) {
+			api.post(`/whatsappsession/${whatsApp.id}`).catch(err => {
+				toastError(err);
+			});
+		}
 	};
 
 	const handleCloseQrModal = useCallback(() => {
@@ -229,30 +246,36 @@ const Connections = () => {
 							color="primary"
 							onClick={() => handleStartWhatsAppSession(whatsApp.id)}
 						>
-							{i18n.t("connections.buttons.tryAgain")}
+							Sesión
 						</Button>{" "}
 						<Button
 							size="small"
-							variant="outlined"
-							color="secondary"
-							onClick={() => handleRequestNewQrCode(whatsApp.id)}
+							variant="contained"
+							color="primary"
+							onClick={() => handleOpenQrModal(whatsApp)}
 						>
-							{i18n.t("connections.buttons.newQr")}
+							QR Code
 						</Button>
 					</>
 				)}
-				{(whatsApp.status === "CONNECTED" ||
-					whatsApp.status === "PAIRING" ||
-					whatsApp.status === "TIMEOUT") && (
+                {(whatsApp.status === "TIMEOUT" || whatsApp.status === "PAIRING") && (
 					<Button
 						size="small"
-						variant="outlined"
-						color="secondary"
-						onClick={() => {
-							handleOpenConfirmationModal("disconnect", whatsApp.id);
-						}}
+						variant="contained"
+						color="primary"
+						onClick={() => handleOpenQrModal(whatsApp)}
 					>
-						{i18n.t("connections.buttons.disconnect")}
+						QR Code
+					</Button>
+				)}
+				{whatsApp.status === "CONNECTED" && (
+					<Button
+						size="small"
+						variant="contained"
+						disabled
+						color="default"
+					>
+						QR Code
 					</Button>
 				)}
 				{whatsApp.status === "OPENING" && (
@@ -260,6 +283,19 @@ const Connections = () => {
 						{i18n.t("connections.buttons.connecting")}
 					</Button>
 				)}
+                {whatsApp.status !== "DISCONNECTED" && whatsApp.status !== "qrcode" && (
+                    <Button
+                        size="small"
+                        variant="outlined"
+                        color="secondary"
+                        onClick={() => {
+                            handleOpenConfirmationModal("disconnect", whatsApp.id);
+                        }}
+                        style={{ marginLeft: 5 }}
+                    >
+                        {i18n.t("connections.buttons.disconnect")}
+                    </Button>
+                )}
 			</>
 		);
 	};
@@ -269,10 +305,10 @@ const Connections = () => {
 			<div className={classes.customTableCell}>
 				{whatsApp.status === "DISCONNECTED" && (
 					<CustomToolTip
-						title={i18n.t("connections.toolTips.disconnected.title")}
-						content={i18n.t("connections.toolTips.disconnected.content")}
+						title="Esperando conexión"
+						content="Haga clic en el botón de sesión o QR para iniciar"
 					>
-						<SignalCellularConnectedNoInternet0Bar color="secondary" />
+						<Schedule color="disabled" />
 					</CustomToolTip>
 				)}
 				{whatsApp.status === "OPENING" && (
@@ -293,10 +329,10 @@ const Connections = () => {
 				)}
 				{(whatsApp.status === "TIMEOUT" || whatsApp.status === "PAIRING") && (
 					<CustomToolTip
-						title={i18n.t("connections.toolTips.timeout.title")}
-						content={i18n.t("connections.toolTips.timeout.content")}
+						title="Error de conexión"
+						content="Se perdió la conexión. Intente abrir el QR de nuevo."
 					>
-						<SignalCellularConnectedNoInternet2Bar color="secondary" />
+						<ErrorOutline color="secondary" />
 					</CustomToolTip>
 				)}
 			</div>
@@ -316,8 +352,12 @@ const Connections = () => {
 			<QrcodeModal
 				open={qrModalOpen}
 				onClose={handleCloseQrModal}
-				onSuccess={() => setIsOpeningFormAfterQR(true)}
+				onSuccess={() => {
+					setIsOpeningFormAfterQR(false);
+					toast.success(i18n.t("connections.toasts.connected") || "Conexión establecida con éxito");
+				}}
 				whatsAppId={!whatsAppModalOpen && selectedWhatsApp?.id}
+                whatsAppName={selectedWhatsApp?.name}
 			/>
 			<WhatsAppModal
 				open={whatsAppModalOpen}
@@ -368,7 +408,16 @@ const Connections = () => {
 								{whatsApps?.length > 0 &&
 									whatsApps.map(whatsApp => (
 										<TableRow key={whatsApp.id}>
-											<TableCell align="center">{whatsApp.name}</TableCell>
+											<TableCell align="center">
+                                                <Typography variant="body1">
+                                                    {whatsApp.name}
+                                                </Typography>
+                                                {whatsApp.number && (
+                                                    <Typography variant="caption" color="textSecondary">
+                                                        {whatsApp.number}
+                                                    </Typography>
+                                                )}
+                                            </TableCell>
 											<TableCell align="center">
 												{renderStatusToolTips(whatsApp)}
 											</TableCell>

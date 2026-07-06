@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useReducer, useRef } from "react";
+import React, { useState, useEffect, useReducer, useRef, useContext } from "react";
+import { AuthContext } from "../../context/Auth/AuthContext";
 
 import { isSameDay, parseISO, format } from "date-fns";
 import openSocket from "../../services/socket-io";
@@ -19,6 +20,8 @@ import {
   DoneAll,
   ExpandMore,
   GetApp,
+  Lock,
+  LocalOffer,
 } from "@material-ui/icons";
 
 import MarkdownWrapper from "../MarkdownWrapper";
@@ -259,6 +262,108 @@ const useStyles = makeStyles((theme) => ({
     backgroundColor: "inherit",
     padding: 10,
   },
+  messageNote: {
+    marginLeft: "auto",
+    marginRight: "auto",
+    marginTop: 4,
+    marginBottom: 4,
+    minWidth: 100,
+    maxWidth: 600,
+    height: "auto",
+    display: "block",
+    position: "relative",
+    whiteSpace: "pre-wrap",
+    backgroundColor: "#fff9c4",
+    color: "#303030",
+    alignSelf: "center",
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
+    borderBottomLeftRadius: 8,
+    borderBottomRightRadius: 8,
+    paddingLeft: 12,
+    paddingRight: 12,
+    paddingTop: 8,
+    paddingBottom: 8,
+    boxShadow: "0 1px 2px rgba(0,0,0,0.15)",
+    border: "1px solid #fff59d"
+  },
+  noteHeader: {
+    display: "flex",
+    alignItems: "center",
+    fontSize: 11,
+    color: "#f57f17",
+    fontWeight: "bold",
+    marginBottom: 4,
+    gap: 4
+  },
+  messageTag: {
+    marginLeft: "auto",
+    marginRight: "auto",
+    marginTop: 4,
+    marginBottom: 4,
+    minWidth: 100,
+    maxWidth: 600,
+    height: "auto",
+    display: "block",
+    position: "relative",
+    whiteSpace: "pre-wrap",
+    backgroundColor: "#e8eaf6",
+    color: "#303030",
+    alignSelf: "center",
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
+    borderBottomLeftRadius: 8,
+    borderBottomRightRadius: 8,
+    paddingLeft: 12,
+    paddingRight: 12,
+    paddingTop: 8,
+    paddingBottom: 8,
+    boxShadow: "0 1px 2px rgba(0,0,0,0.15)",
+    border: "1px solid #c5cae9"
+  },
+  tagHeader: {
+    display: "flex",
+    alignItems: "center",
+    fontSize: 11,
+    color: "#3f51b5",
+    fontWeight: "bold",
+    marginBottom: 4,
+    gap: 4
+  },
+  messageSchedule: {
+    marginLeft: "auto",
+    marginRight: "auto",
+    marginTop: 4,
+    marginBottom: 4,
+    minWidth: 100,
+    maxWidth: 600,
+    height: "auto",
+    display: "block",
+    position: "relative",
+    whiteSpace: "pre-wrap",
+    backgroundColor: "#eceff1",
+    color: "#37474f",
+    alignSelf: "center",
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
+    borderBottomLeftRadius: 8,
+    borderBottomRightRadius: 8,
+    paddingLeft: 12,
+    paddingRight: 12,
+    paddingTop: 8,
+    paddingBottom: 8,
+    boxShadow: "0 1px 2px rgba(0,0,0,0.15)",
+    border: "1px solid #cfd8dc"
+  },
+  scheduleHeader: {
+    display: "flex",
+    alignItems: "center",
+    fontSize: 11,
+    color: "#546e7a",
+    fontWeight: "bold",
+    marginBottom: 4,
+    gap: 4
+  }
 }));
 
 const reducer = (state, action) => {
@@ -302,6 +407,15 @@ const reducer = (state, action) => {
     return [...state];
   }
 
+  if (action.type === "DELETE_MESSAGE") {
+    const messageId = action.payload;
+    const messageIndex = state.findIndex((m) => m.id === messageId || `schedule-${m.id}` === messageId);
+    if (messageIndex !== -1) {
+      state.splice(messageIndex, 1);
+    }
+    return [...state];
+  }
+
   if (action.type === "RESET") {
     return [];
   }
@@ -320,10 +434,13 @@ const MessagesList = ({ ticketId, isGroup }) => {
   const [anchorEl, setAnchorEl] = useState(null);
   const messageOptionsMenuOpen = Boolean(anchorEl);
   const currentTicketId = useRef(ticketId);
+  const { user } = useContext(AuthContext);
+  const [ticket, setTicket] = useState(null);
 
   useEffect(() => {
     dispatch({ type: "RESET" });
     setPageNumber(1);
+    setTicket(null);
 
     currentTicketId.current = ticketId;
   }, [ticketId]);
@@ -339,6 +456,7 @@ const MessagesList = ({ ticketId, isGroup }) => {
 
           if (currentTicketId.current === ticketId) {
             dispatch({ type: "LOAD_MESSAGES", payload: data.messages });
+            setTicket(data.ticket);
             setHasMore(data.hasMore);
             setLoading(false);
           }
@@ -371,6 +489,14 @@ const MessagesList = ({ ticketId, isGroup }) => {
 
       if (data.action === "update") {
         dispatch({ type: "UPDATE_MESSAGE", payload: data.message });
+      }
+
+      if (data.action === "delete_schedule") {
+        dispatch({ type: "DELETE_MESSAGE", payload: `schedule-${data.scheduleId}` });
+      }
+
+      if (data.action === "delete") {
+        dispatch({ type: "DELETE_MESSAGE", payload: data.messageId });
       }
     });
 
@@ -465,7 +591,7 @@ const MessagesList = ({ ticketId, isGroup }) => {
         )
       } else return (<></>)
     }*/
-    else if ( /^.*\.(jpe?g|png|gif)?$/i.exec(message.mediaUrl) && message.mediaType === "image") {
+    else if ( /^.*\.(jpe?g|png|gif|webp)?$/i.exec(message.mediaUrl) && message.mediaType === "image") {
       return <ModalImageCors imageUrl={message.mediaUrl} />;
     } else if (message.mediaType === "audio") {
       return <Audio url={message.mediaUrl} />
@@ -498,6 +624,9 @@ const MessagesList = ({ ticketId, isGroup }) => {
   };
 
   const renderMessageAck = (message) => {
+    if (message.ack === -1) {
+      return <AccessTime fontSize="small" style={{ color: "#f44336" }} />;
+    }
     if (message.ack === 0) {
       return <AccessTime fontSize="small" className={classes.ackIcons} />;
     }
@@ -593,7 +722,95 @@ const MessagesList = ({ ticketId, isGroup }) => {
   const renderMessages = () => {
     if (messagesList.length > 0) {
       const viewMessagesList = messagesList.map((message, index) => {
-        if (!message.fromMe) {
+        if (message.isScheduled) {
+          return (
+            <React.Fragment key={`schedule-${message.id}`}>
+              {renderDailyTimestamps(message, index)}
+              {renderMessageDivider(message, index)}
+              <div className={classes.messageSchedule}>
+                <div className={classes.scheduleHeader}>
+                  <AccessTime style={{ fontSize: 14, color: "#546e7a", marginRight: 4 }} />
+                  <span>MENSAJE PROGRAMADO - ENVIAR EL {format(parseISO(message.sendAt || message.createdAt), "dd/MM/yyyy HH:mm")}</span>
+                </div>
+                <div style={{ overflowWrap: "break-word", paddingRight: 60 }}>
+                  <MarkdownWrapper>{message.body}</MarkdownWrapper>
+                  <span className={classes.timestamp}>
+                    {format(parseISO(message.createdAt), "HH:mm")}
+                  </span>
+                </div>
+              </div>
+            </React.Fragment>
+          );
+        }
+
+        if (message.mediaType === "schedule_history") {
+          return (
+            <React.Fragment key={message.id}>
+              {renderDailyTimestamps(message, index)}
+              {renderMessageDivider(message, index)}
+              <div className={classes.messageTag} style={{ backgroundColor: "#eceff1", border: "1px solid #cfd8dc" }}>
+                <div className={classes.tagHeader} style={{ color: "#455a64" }}>
+                  <AccessTime style={{ fontSize: 14, color: "#455a64", marginRight: 4 }} />
+                  <span>SISTEMA - PROGRAMACIÓN</span>
+                </div>
+                <div style={{ overflowWrap: "break-word", paddingRight: 60 }}>
+                  <MarkdownWrapper>{message.body}</MarkdownWrapper>
+                  <span className={classes.timestamp}>
+                    {format(parseISO(message.createdAt), "HH:mm")}
+                  </span>
+                </div>
+              </div>
+            </React.Fragment>
+          );
+        }
+
+        if (message.mediaType === "tag") {
+          return (
+            <React.Fragment key={message.id}>
+              {renderDailyTimestamps(message, index)}
+              {renderMessageDivider(message, index)}
+              <div className={classes.messageTag}>
+                <div className={classes.tagHeader}>
+                  <LocalOffer style={{ fontSize: 14, color: "#3f51b5", marginRight: 4 }} />
+                  <span>SISTEMA - ETIQUETA</span>
+                </div>
+                <div style={{ overflowWrap: "break-word", paddingRight: 60 }}>
+                  <MarkdownWrapper>{message.body}</MarkdownWrapper>
+                  <span className={classes.timestamp}>
+                    {format(parseISO(message.createdAt), "HH:mm")}
+                  </span>
+                </div>
+              </div>
+            </React.Fragment>
+          );
+        }
+
+        if (message.mediaType === "note") {
+          return (
+            <React.Fragment key={message.id}>
+              {renderDailyTimestamps(message, index)}
+              {renderMessageDivider(message, index)}
+              <div className={classes.messageNote}>
+                <div className={classes.noteHeader}>
+                  <Lock style={{ fontSize: 14, color: "#f57f17", marginRight: 4 }} />
+                  <span>NOTA INTERNA</span>
+                </div>
+                <div style={{ overflowWrap: "break-word", paddingRight: 60 }}>
+                  <MarkdownWrapper>{message.body}</MarkdownWrapper>
+                  <span className={classes.timestamp}>
+                    {format(parseISO(message.createdAt), "HH:mm")}
+                  </span>
+                </div>
+              </div>
+            </React.Fragment>
+          );
+        }
+
+        const isFromMe = ticket?.contact?.number?.startsWith("user_group_")
+          ? message.contact?.number === `user_${user?.id}`
+          : message.fromMe;
+
+        if (!isFromMe) {
           return (
             <React.Fragment key={message.id}>
               {renderDailyTimestamps(message, index)}

@@ -10,7 +10,8 @@ import {
   Unique,
   BelongsToMany,
   ForeignKey,
-  BelongsTo
+  BelongsTo,
+  HasMany
 } from "sequelize-typescript";
 import User from "./User";
 import UserQueue from "./UserQueue";
@@ -18,6 +19,7 @@ import UserQueue from "./UserQueue";
 import Whatsapp from "./Whatsapp";
 import WhatsappQueue from "./WhatsappQueue";
 import Company from "./Company";
+import QueueOption from "./QueueOption";
 
 @Table
 class Queue extends Model<Queue> {
@@ -57,6 +59,9 @@ class Queue extends Model<Queue> {
 
   @BelongsToMany(() => User, () => UserQueue)
   users: Array<User & { UserQueue: UserQueue }>;
+
+  @HasMany(() => QueueOption)
+  options: QueueOption[];
 }
 
 export default Queue;

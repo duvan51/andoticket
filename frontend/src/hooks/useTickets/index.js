@@ -14,6 +14,8 @@ const useTickets = ({
     withUnreadMessages,
     tagId,
     unanswered,
+    isInternal,
+    userId,
 }) => {
     const [loading, setLoading] = useState(true);
     const [hasMore, setHasMore] = useState(false);
@@ -36,6 +38,8 @@ const useTickets = ({
                             withUnreadMessages,
                             tagId,
                             unanswered,
+                            isInternal,
+                            userId,
                         },
                     })
                     setTickets(data.tickets)
@@ -86,6 +90,8 @@ const useTickets = ({
         withUnreadMessages,
         tagId,
         unanswered,
+        isInternal,
+        userId,
     ])
 
     return { tickets, loading, hasMore, count };

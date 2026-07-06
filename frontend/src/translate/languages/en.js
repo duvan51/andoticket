@@ -285,6 +285,7 @@ const messages = {
           contacts: "Contacts",
           quickAnswers: "Quick Answers",
           queues: "Queues",
+          schedules: "Schedules",
           administration: "Administration",
           users: "Users",
           settings: "Settings",
@@ -458,6 +459,45 @@ const messages = {
           "This color is already in use, pick another one.",
         ERR_WAPP_GREETING_REQUIRED:
           "Greeting message is required if there is more than one queue.",
+      },
+      schedules: {
+        title: "Schedules",
+        table: {
+          contact: "Contact",
+          body: "Message",
+          sendAt: "Scheduled Date",
+          sentAt: "Sent Date",
+          status: "Status",
+          actions: "Actions"
+        },
+        buttons: {
+          add: "Add Schedule"
+        },
+        toasts: {
+          deleted: "Schedule deleted successfully"
+        },
+        searchPlaceholder: "Search...",
+        confirmationModal: {
+          deleteTitle: "Do you want to delete this scheduled message?",
+          deleteMessage: "This action cannot be undone."
+        }
+      },
+      schedulesModal: {
+        title: {
+          add: "Schedule Message",
+          edit: "Edit Scheduled Message"
+        },
+        form: {
+          contact: "Contact",
+          body: "Message",
+          sendAt: "Date and Time"
+        },
+        buttons: {
+          okAdd: "Schedule",
+          okEdit: "Save",
+          cancel: "Cancel"
+        },
+        success: "Message scheduled successfully."
       },
     },
   },

@@ -1,4 +1,5 @@
 import Tag from "../../models/Tag";
+import User from "../../models/User";
 import { Op } from "sequelize";
 
 interface Request {
@@ -14,13 +15,11 @@ const ListTagsService = async ({
 }: Request): Promise<Tag[]> => {
     let whereCondition: any = {};
 
-    if (companyId && companyId !== 1) {
-        whereCondition.companyId = companyId;
+    if (!companyId) {
+        throw new Error("ERR_NO_COMPANY_ID");
     }
 
-    if (userId) {
-        whereCondition.userId = userId;
-    }
+    whereCondition.companyId = companyId;
 
     if (searchParam) {
         whereCondition.name = {
@@ -28,8 +27,24 @@ const ListTagsService = async ({
         };
     }
 
+    const orConditions: any[] = [
+        { "$user.profile$": ["admin", "superadmin"] }
+    ];
+
+    if (userId) {
+        orConditions.push({ userId });
+    }
+
     const tags = await Tag.findAll({
-        where: whereCondition,
+        where: {
+            ...whereCondition,
+            [Op.or]: orConditions
+        },
+        include: [{
+            model: User,
+            as: "user",
+            attributes: ["profile"]
+        }],
         order: [["name", "ASC"]]
     });
 

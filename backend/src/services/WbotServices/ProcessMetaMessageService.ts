@@ -30,16 +30,18 @@ const ProcessMetaMessageService = async (
         number: message.senderId,
         profilePicUrl: "",
         isGroup: false,
-        email: ""
+        email: "",
+        companyId: channel.companyId
     };
 
-    const contact = await CreateOrUpdateContactService(contactData);
+    const contact = await CreateOrUpdateContactService(contactData as any);
 
     // 2. Find or Create Ticket
     const ticket = await FindOrCreateTicketService(
         contact,
         channel.id,
-        1 // unread messages
+        1, // unread messages
+        channel.companyId
     );
 
     // 3. Create Message

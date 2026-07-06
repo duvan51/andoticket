@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import openSocket from "../../services/socket-io";
 
 import { makeStyles } from "@material-ui/core/styles";
@@ -7,11 +7,14 @@ import Typography from "@material-ui/core/Typography";
 import Container from "@material-ui/core/Container";
 import Select from "@material-ui/core/Select";
 import TextField from "@material-ui/core/TextField";
+import Button from "@material-ui/core/Button";
 import { toast } from "react-toastify";
 
 import api from "../../services/api";
 import { i18n } from "../../translate/i18n.js";
 import toastError from "../../errors/toastError";
+import { AuthContext } from "../../context/Auth/AuthContext";
+import { getBackendUrl } from "../../config";
 
 const useStyles = makeStyles(theme => ({
 	root: {
@@ -28,6 +31,14 @@ const useStyles = makeStyles(theme => ({
 
 	},
 
+	paperLogo: {
+		padding: theme.spacing(2),
+		display: "flex",
+		flexDirection: "column",
+		alignItems: "flex-start",
+		marginBottom: 12,
+	},
+
 	settingOption: {
 		marginLeft: "auto",
 	},
@@ -39,6 +50,7 @@ const useStyles = makeStyles(theme => ({
 
 const Settings = () => {
 	const classes = useStyles();
+	const { user, setUser } = useContext(AuthContext);
 
 	const [settings, setSettings] = useState([]);
 
@@ -134,6 +146,51 @@ const Settings = () => {
 						fullWidth
 						value={settings && settings.length > 0 && getSettingValue("userApiToken")}
 					/>
+				</Paper>
+
+				<Paper className={classes.paperLogo}>
+					<Typography variant="body1" style={{ marginBottom: 10 }}>
+						Logo de la Empresa
+					</Typography>
+					{user?.company?.logo && (
+						<img
+							src={`${getBackendUrl()}/public/${user.company.logo}`.replace(/([^:]\/)\/+/g, "$1")}
+							alt="Logo de la empresa"
+							style={{ maxHeight: 120, maxWidth: "100%", marginBottom: 15, borderRadius: 4, objectFit: 'contain' }}
+						/>
+					)}
+					<Button
+						variant="contained"
+						component="label"
+						color="primary"
+					>
+						Subir Logo
+						<input
+							type="file"
+							accept="image/*"
+							hidden
+							onChange={async (e) => {
+								const file = e.target.files[0];
+								if (!file) return;
+
+								const formData = new FormData();
+								formData.append("logo", file);
+
+								try {
+									const { data } = await api.post("/settings/logo", formData, {
+										headers: {
+											"Content-Type": "multipart/form-data"
+										}
+									});
+									const updatedUser = { ...user, company: data };
+									setUser(updatedUser);
+									toast.success("Logo actualizado con éxito.");
+								} catch (err) {
+									toastError(err);
+								}
+							}}
+						/>
+					</Button>
 				</Paper>
 
 			</Container>

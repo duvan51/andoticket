@@ -18,15 +18,20 @@ const CreateTicketService = async ({
   userId,
   queueId
 }: Request): Promise<Ticket> => {
+  const user = await User.findByPk(userId, { include: ["queues"] });
+  if (!user) {
+    throw new AppError("ERR_USER_NOT_FOUND");
+  }
+  const companyId = user.companyId;
+
   const defaultWhatsapp = await GetDefaultWhatsApp(userId);
 
   await CheckContactOpenTickets(contactId, defaultWhatsapp.id);
 
-  const { isGroup } = await ShowContactService(contactId);
+  const { isGroup } = await ShowContactService(contactId, companyId);
 
   if (queueId === undefined) {
-    const user = await User.findByPk(userId, { include: ["queues"] });
-    queueId = user?.queues.length === 1 ? user.queues[0].id : undefined;
+    queueId = user.queues.length === 1 ? user.queues[0].id : undefined;
   }
 
   const { id }: Ticket = await defaultWhatsapp.$create("ticket", {
@@ -34,7 +39,8 @@ const CreateTicketService = async ({
     status,
     isGroup,
     userId,
-    queueId
+    queueId,
+    companyId
   });
 
   const ticket = await Ticket.findByPk(id, { include: ["contact"] });

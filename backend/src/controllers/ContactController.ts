@@ -78,8 +78,8 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
     throw new AppError(err.message);
   }
 
-  await CheckIsValidContact(newContact.number);
-  const validNumber: any = await CheckContactNumber(newContact.number);
+  await CheckIsValidContact(newContact.number, req.user.companyId);
+  const validNumber: any = await CheckContactNumber(newContact.number, req.user.companyId);
 
   const profilePicUrl = await GetProfilePicUrl(validNumber);
 
@@ -135,7 +135,7 @@ export const update = async (
     throw new AppError(err.message);
   }
 
-  await CheckIsValidContact(contactData.number);
+  await CheckIsValidContact(contactData.number, req.user.companyId);
 
   const { contactId } = req.params;
 

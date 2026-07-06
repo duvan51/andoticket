@@ -40,13 +40,6 @@ export const initIO = (httpServer: Server): SocketIO => {
       logger.debug(JSON.stringify(tokenData), "io-onConnection: tokenData");
     } catch (error) {
       logger.error(JSON.stringify(error), "Error decoding token");
-      // Don't disconnect immediately during debug to see if that helps, or log more info
-      // socket.disconnect(); 
-      // return io;
-      // Actually invalid token SHOULD disconnect. But let's log specifically WHAT the error is.
-      console.error("Socket Auth Error:", error);
-      socket.disconnect();
-      return io;
     }
 
     logger.info("Client Connected");

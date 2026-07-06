@@ -1,19 +1,11 @@
 import Queue from "../../models/Queue";
 import Whatsapp from "../../models/Whatsapp";
 
-const ListWhatsAppsService = async (companyId: number): Promise<Whatsapp[]> => {
-  let whereCondition = {};
+const ListWhatsAppsService = async (companyId?: number): Promise<Whatsapp[]> => {
+  const whereCondition: any = {};
 
-  if (companyId === 1) {
-    whereCondition = {};
-  } else if (companyId) {
-    whereCondition = {
-      companyId
-    };
-  } else {
-    whereCondition = {
-      companyId: -1
-    };
+  if (companyId) {
+    whereCondition.companyId = companyId;
   }
 
   const whatsapps = await Whatsapp.findAll({

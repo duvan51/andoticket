@@ -12,6 +12,7 @@ interface MessageData {
   read?: boolean;
   mediaType?: string;
   mediaUrl?: string;
+  ack?: number;
 }
 interface Request {
   messageData: MessageData;

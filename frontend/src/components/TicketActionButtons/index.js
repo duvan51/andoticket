@@ -1,9 +1,9 @@
 import React, { useContext, useState } from "react";
 import { useHistory } from "react-router-dom";
 
-import { makeStyles } from "@material-ui/core/styles";
-import { IconButton } from "@material-ui/core";
-import { MoreVert, Replay } from "@material-ui/icons";
+import { makeStyles, useTheme } from "@material-ui/core/styles";
+import { IconButton, Tooltip, useMediaQuery } from "@material-ui/core";
+import { MoreVert, Replay, Done } from "@material-ui/icons";
 
 import { i18n } from "../../translate/i18n";
 import api from "../../services/api";
@@ -18,8 +18,10 @@ const useStyles = makeStyles(theme => ({
 		flex: "none",
 		alignSelf: "center",
 		marginLeft: "auto",
+		display: "flex",
+		alignItems: "center",
 		"& > *": {
-			margin: theme.spacing(1),
+			margin: theme.spacing(0.5),
 		},
 	},
 }));
@@ -27,6 +29,8 @@ const useStyles = makeStyles(theme => ({
 const TicketActionButtons = ({ ticket }) => {
 	const classes = useStyles();
 	const history = useHistory();
+	const theme = useTheme();
+	const isMobile = useMediaQuery(theme.breakpoints.down("md"));
 	const [anchorEl, setAnchorEl] = useState(null);
 	const [loading, setLoading] = useState(false);
 	const ticketOptionsMenuOpen = Boolean(anchorEl);
@@ -63,34 +67,51 @@ const TicketActionButtons = ({ ticket }) => {
 	return (
 		<div className={classes.actionButtons}>
 			{ticket.status === "closed" && (
-				<ButtonWithSpinner
-					loading={loading}
-					startIcon={<Replay />}
-					size="small"
-					onClick={e => handleUpdateTicketStatus(e, "open", user?.id)}
-				>
-					{i18n.t("messagesList.header.buttons.reopen")}
-				</ButtonWithSpinner>
+				<Tooltip title={i18n.t("messagesList.header.buttons.reopen")}>
+					<span>
+						<ButtonWithSpinner
+							loading={loading}
+							startIcon={<Replay />}
+							size="small"
+							variant="contained"
+							color="primary"
+							onClick={e => handleUpdateTicketStatus(e, "open", user?.id)}
+						>
+							{isMobile ? "" : i18n.t("messagesList.header.buttons.reopen")}
+						</ButtonWithSpinner>
+					</span>
+				</Tooltip>
 			)}
 			{ticket.status === "open" && (
 				<>
-					<ButtonWithSpinner
-						loading={loading}
-						startIcon={<Replay />}
-						size="small"
-						onClick={e => handleUpdateTicketStatus(e, "pending", null)}
-					>
-						{i18n.t("messagesList.header.buttons.return")}
-					</ButtonWithSpinner>
-					<ButtonWithSpinner
-						loading={loading}
-						size="small"
-						variant="contained"
-						color="primary"
-						onClick={e => handleUpdateTicketStatus(e, "closed", user?.id)}
-					>
-						{i18n.t("messagesList.header.buttons.resolve")}
-					</ButtonWithSpinner>
+					<Tooltip title={i18n.t("messagesList.header.buttons.return")}>
+						<span>
+							<ButtonWithSpinner
+								loading={loading}
+								startIcon={<Replay />}
+								size="small"
+								variant="outlined"
+								color="primary"
+								onClick={e => handleUpdateTicketStatus(e, "pending", null)}
+							>
+								{isMobile ? "" : i18n.t("messagesList.header.buttons.return")}
+							</ButtonWithSpinner>
+						</span>
+					</Tooltip>
+					<Tooltip title={i18n.t("messagesList.header.buttons.resolve")}>
+						<span>
+							<ButtonWithSpinner
+								loading={loading}
+								startIcon={isMobile ? <Done /> : undefined}
+								size="small"
+								variant="contained"
+								color="primary"
+								onClick={e => handleUpdateTicketStatus(e, "closed", user?.id)}
+							>
+								{isMobile ? "" : i18n.t("messagesList.header.buttons.resolve")}
+							</ButtonWithSpinner>
+						</span>
+					</Tooltip>
 					<IconButton onClick={handleOpenTicketOptionsMenu}>
 						<MoreVert />
 					</IconButton>
@@ -103,15 +124,20 @@ const TicketActionButtons = ({ ticket }) => {
 				</>
 			)}
 			{ticket.status === "pending" && (
-				<ButtonWithSpinner
-					loading={loading}
-					size="small"
-					variant="contained"
-					color="primary"
-					onClick={e => handleUpdateTicketStatus(e, "open", user?.id)}
-				>
-					{i18n.t("messagesList.header.buttons.accept")}
-				</ButtonWithSpinner>
+				<Tooltip title={i18n.t("messagesList.header.buttons.accept")}>
+					<span>
+						<ButtonWithSpinner
+							loading={loading}
+							startIcon={isMobile ? <Done /> : undefined}
+							size="small"
+							variant="contained"
+							color="primary"
+							onClick={e => handleUpdateTicketStatus(e, "open", user?.id)}
+						>
+							{isMobile ? "" : i18n.t("messagesList.header.buttons.accept")}
+						</ButtonWithSpinner>
+					</span>
+				</Tooltip>
 			)}
 		</div>
 	);

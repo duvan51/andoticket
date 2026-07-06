@@ -288,6 +288,7 @@ const messages = {
           contacts: "Contatos",
           quickAnswers: "Respostas Rápidas",
           queues: "Filas",
+          schedules: "Agendamentos",
           administration: "Administração",
           users: "Usuários",
           settings: "Configurações",
@@ -462,6 +463,45 @@ const messages = {
           "Esta cor já está em uso, escolha outra.",
         ERR_WAPP_GREETING_REQUIRED:
           "A mensagem de saudação é obrigatório quando há mais de uma fila.",
+      },
+      schedules: {
+        title: "Agendamentos",
+        table: {
+          contact: "Contato",
+          body: "Mensagem",
+          sendAt: "Data Agendada",
+          sentAt: "Data de Envio",
+          status: "Status",
+          actions: "Ações"
+        },
+        buttons: {
+          add: "Adicionar Agendamento"
+        },
+        toasts: {
+          deleted: "Agendamento excluído com sucesso"
+        },
+        searchPlaceholder: "Pesquisar...",
+        confirmationModal: {
+          deleteTitle: "Deseja excluir esta mensagem agendada?",
+          deleteMessage: "Esta ação não pode ser revertida."
+        }
+      },
+      schedulesModal: {
+        title: {
+          add: "Agendar Mensagem",
+          edit: "Editar Mensagem Agendada"
+        },
+        form: {
+          contact: "Contato",
+          body: "Mensagem",
+          sendAt: "Data e Hora"
+        },
+        buttons: {
+          okAdd: "Agendar",
+          okEdit: "Salvar",
+          cancel: "Cancelar"
+        },
+        success: "Mensagem agendada com sucesso."
       },
     },
   },
