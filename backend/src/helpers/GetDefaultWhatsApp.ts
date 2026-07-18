@@ -1,9 +1,19 @@
 import { Op } from "sequelize";
 import AppError from "../errors/AppError";
 import Whatsapp from "../models/Whatsapp";
+import User from "../models/User";
 import GetDefaultWhatsAppByUser from "./GetDefaultWhatsAppByUser";
 
 const GetDefaultWhatsApp = async (userId?: number, companyId?: number): Promise<Whatsapp> => {
+  let resolvedCompanyId = companyId;
+
+  if (userId && !resolvedCompanyId) {
+    const user = await User.findByPk(userId);
+    if (user) {
+      resolvedCompanyId = user.companyId;
+    }
+  }
+
   if (userId) {
     const whatsappByUser = await GetDefaultWhatsAppByUser(userId);
     if (whatsappByUser !== null) {
@@ -16,8 +26,8 @@ const GetDefaultWhatsApp = async (userId?: number, companyId?: number): Promise<
     status: { [Op.in]: ["CONNECTED", "OPENING"] }
   };
   
-  if (companyId) {
-    whereCondition.companyId = companyId;
+  if (resolvedCompanyId) {
+    whereCondition.companyId = resolvedCompanyId;
   }
 
   let defaultWhatsapp = await Whatsapp.findOne({
@@ -27,8 +37,8 @@ const GetDefaultWhatsApp = async (userId?: number, companyId?: number): Promise<
   // If no default found, try any CONNECTED or OPENING whatsapp
   if (!defaultWhatsapp) {
     whereCondition = { status: { [Op.in]: ["CONNECTED", "OPENING"] } };
-    if (companyId) {
-      whereCondition.companyId = companyId;
+    if (resolvedCompanyId) {
+      whereCondition.companyId = resolvedCompanyId;
     }
     defaultWhatsapp = await Whatsapp.findOne({
       where: whereCondition

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useReducer } from "react";
+import React, { useState, useEffect, useReducer, useContext } from "react";
 import openSocket from "../../services/socket-io";
 
 import {
@@ -29,6 +29,7 @@ import QuickAnswersModal from "../../components/QuickAnswersModal";
 import ConfirmationModal from "../../components/ConfirmationModal";
 import { toast } from "react-toastify";
 import toastError from "../../errors/toastError";
+import { AuthContext } from "../../context/Auth/AuthContext";
 
 const reducer = (state, action) => {
   if (action.type === "LOAD_QUICK_ANSWERS") {
@@ -85,6 +86,7 @@ const useStyles = makeStyles((theme) => ({
 
 const QuickAnswers = () => {
   const classes = useStyles();
+  const { user } = useContext(AuthContext);
 
   const [loading, setLoading] = useState(false);
   const [pageNumber, setPageNumber] = useState(1);
@@ -126,7 +128,13 @@ const QuickAnswers = () => {
 
     socket.on("quickAnswer", (data) => {
       if (data.action === "update" || data.action === "create") {
-        dispatch({ type: "UPDATE_QUICK_ANSWERS", payload: data.quickAnswer });
+        const { quickAnswer } = data;
+        if (
+          quickAnswer.companyId === user.companyId &&
+          (quickAnswer.userId === null || quickAnswer.userId === user.id)
+        ) {
+          dispatch({ type: "UPDATE_QUICK_ANSWERS", payload: quickAnswer });
+        }
       }
 
       if (data.action === "delete") {
@@ -140,7 +148,7 @@ const QuickAnswers = () => {
     return () => {
       socket.disconnect();
     };
-  }, []);
+  }, [user]);
 
   const handleSearch = (event) => {
     setSearchParam(event.target.value.toLowerCase());
@@ -246,6 +254,9 @@ const QuickAnswers = () => {
                 {i18n.t("quickAnswers.table.message")}
               </TableCell>
               <TableCell align="center">
+                {i18n.t("quickAnswers.table.type")}
+              </TableCell>
+              <TableCell align="center">
                 {i18n.t("quickAnswers.table.actions")}
               </TableCell>
             </TableRow>
@@ -257,26 +268,35 @@ const QuickAnswers = () => {
                   <TableCell align="center">{quickAnswer.shortcut}</TableCell>
                   <TableCell align="center">{quickAnswer.message}</TableCell>
                   <TableCell align="center">
-                    <IconButton
-                      size="small"
-                      onClick={() => handleEditQuickAnswers(quickAnswer)}
-                    >
-                      <Edit />
-                    </IconButton>
+                    {quickAnswer.userId
+                      ? i18n.t("quickAnswers.table.personal")
+                      : i18n.t("quickAnswers.table.group")}
+                  </TableCell>
+                  <TableCell align="center">
+                    {((quickAnswer.userId === user.id) || (user.profile === "admin")) ? (
+                      <>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleEditQuickAnswers(quickAnswer)}
+                        >
+                          <Edit />
+                        </IconButton>
 
-                    <IconButton
-                      size="small"
-                      onClick={(e) => {
-                        setConfirmModalOpen(true);
-                        setDeletingQuickAnswers(quickAnswer);
-                      }}
-                    >
-                      <DeleteOutline />
-                    </IconButton>
+                        <IconButton
+                          size="small"
+                          onClick={(e) => {
+                            setConfirmModalOpen(true);
+                            setDeletingQuickAnswers(quickAnswer);
+                          }}
+                        >
+                          <DeleteOutline />
+                        </IconButton>
+                      </>
+                    ) : null}
                   </TableCell>
                 </TableRow>
               ))}
-              {loading && <TableRowSkeleton columns={3} />}
+              {loading && <TableRowSkeleton columns={4} />}
             </>
           </TableBody>
         </Table>

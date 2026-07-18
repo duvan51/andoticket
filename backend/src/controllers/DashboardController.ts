@@ -48,7 +48,7 @@ export const index = async (req: Request, res: Response): Promise<Response> => {
                 attributes: ["name"],
                 where: { companyId } // Aislamiento multi-tenant
             }],
-            group: ["userId", "User.id", "User.name"]
+            group: ["userId", "user.id", "user.name"]
         });
 
         // 2. Nuevos leads en los últimos 7 días o rango filtrado (aislado por empresa)

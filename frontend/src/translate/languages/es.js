@@ -175,6 +175,9 @@ const messages = {
         form: {
           shortcut: "Atajo",
           message: "Respuesta rápida",
+          isGroup: "Respuesta Grupal (compartida con todos)",
+          group: "Grupal (todos pueden usar)",
+          personal: "Personal (solo tú puedes usar)",
         },
         buttons: {
           okAdd: "Agregar",
@@ -333,6 +336,9 @@ const messages = {
         table: {
           shortcut: "Atajo",
           message: "Respuesta rápida",
+          type: "Tipo",
+          group: "Grupal",
+          personal: "Personal",
           actions: "Acciones",
         },
         buttons: {

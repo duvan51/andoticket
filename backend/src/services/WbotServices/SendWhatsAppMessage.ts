@@ -5,8 +5,11 @@ import GetWbotMessage from "../../helpers/GetWbotMessage";
 import SerializeWbotMsgId from "../../helpers/SerializeWbotMsgId";
 import Message from "../../models/Message";
 import Ticket from "../../models/Ticket";
+import Contact from "../../models/Contact";
+import { logger } from "../../utils/logger";
 
 import formatBody from "../../helpers/Mustache";
+import { getJid } from "../../helpers/GetJid";
 
 interface Request {
   body: string;
@@ -27,10 +30,19 @@ const SendWhatsAppMessage = async ({
 
   const wbot = await GetTicketWbot(ticket);
 
+  let contact: Contact | null = ticket.contact || null;
+  if (!contact) {
+    contact = await Contact.findByPk(ticket.contactId);
+  }
+
+  if (!contact) {
+    throw new AppError("ERR_CONTACT_NOT_FOUND");
+  }
+
   try {
     const sentMessage = await wbot.sendMessage(
-      `${ticket.contact.number}@${ticket.isGroup ? "g" : "c"}.us`,
-      formatBody(body, ticket.contact),
+      ticket.isGroup ? `${contact.number}@g.us` : getJid(contact.number),
+      formatBody(body, contact),
       {
         quotedMessageId: quotedMsgSerializedId,
         linkPreview: false
@@ -40,6 +52,7 @@ const SendWhatsAppMessage = async ({
     await ticket.update({ lastMessage: body, lastMessageFromMe: true });
     return sentMessage;
   } catch (err) {
+    logger.error(err, "Error in SendWhatsAppMessage");
     throw new AppError("ERR_SENDING_WAPP_MSG");
   }
 };

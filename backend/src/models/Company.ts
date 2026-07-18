@@ -42,11 +42,11 @@ class Company extends Model<Company> {
     @Column
     logo: string;
 
-    @Column(DataType.VIRTUAL)
-    password?: string;
-
     @Column
-    passwordHash: string;
+    password: string;
+
+    @Column(DataType.VIRTUAL)
+    passwordHash?: string;
 
     @Default("free")
     @Column
@@ -103,7 +103,7 @@ class Company extends Model<Company> {
     @BeforeCreate
     static hashPassword = async (instance: Company): Promise<void> => {
         if (instance.password) {
-            instance.passwordHash = await hash(instance.password, 8);
+            instance.password = await hash(instance.password, 8);
         }
     };
 }

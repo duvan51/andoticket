@@ -3,6 +3,7 @@ import Message from "../models/Message";
 import Ticket from "../models/Ticket";
 import { logger } from "../utils/logger";
 import GetTicketWbot from "./GetTicketWbot";
+import { getJid } from "./GetJid";
 
 const SetTicketMessagesAsRead = async (ticket: Ticket): Promise<void> => {
   await Message.update(
@@ -46,7 +47,7 @@ const SetTicketMessagesAsRead = async (ticket: Ticket): Promise<void> => {
     try {
       const wbot = await GetTicketWbot(ticket);
       await wbot.sendSeen(
-        `${ticket.contact.number}@${ticket.isGroup ? "g" : "c"}.us`
+        ticket.isGroup ? `${ticket.contact.number}@g.us` : getJid(ticket.contact.number)
       );
     } catch (err) {
       logger.warn(

@@ -1,54 +1,87 @@
-import { QueryInterface, DataTypes } from "sequelize";
+import { QueryInterface } from "sequelize";
+
+const tables = [
+    "Users",
+    "Tickets",
+    "Messages",
+    "Contacts",
+    "Whatsapps",
+    "Queues",
+    "Settings",
+    "QuickAnswers",
+    "Tags"
+];
 
 module.exports = {
     up: async (queryInterface: QueryInterface) => {
-        // 1. Create a default plan
-        await queryInterface.bulkInsert("Plans", [{
-            name: "Administrador",
-            users: 10,
-            whatsapps: 10,
-            queues: 10,
-            value: 0,
-            createdAt: new Date(),
-            updatedAt: new Date()
-        }]);
+        const [existingPlans] = await queryInterface.sequelize.query(
+            "SELECT id FROM Plans WHERE name = 'Administrador' LIMIT 1;"
+        );
+        let planId = (existingPlans as any[])[0]?.id;
 
-        const [plans] = await queryInterface.sequelize.query("SELECT id FROM Plans LIMIT 1;");
-        const planId = (plans[0] as any).id;
+        if (!planId) {
+            await queryInterface.bulkInsert("Plans", [{
+                name: "Administrador",
+                users: 10,
+                whatsapps: 10,
+                queues: 10,
+                value: 0,
+                createdAt: new Date(),
+                updatedAt: new Date()
+            }]);
 
-        // 2. Create a default company
-        await queryInterface.bulkInsert("Companies", [{
-            name: "Mi Empresa",
-            email: "admin@empresa.com",
-            passwordHash: "$2a$08$9S5Y7K7H7.7.7.7.7.7.7.7.7.7.7.7.7.7.7.7.7.7.7.7.", // Dummy
-            planId: planId,
-            status: true,
-            createdAt: new Date(),
-            updatedAt: new Date()
-        }]);
+            const [createdPlans] = await queryInterface.sequelize.query(
+                "SELECT id FROM Plans WHERE name = 'Administrador' LIMIT 1;"
+            );
+            planId = (createdPlans as any[])[0]?.id;
+        }
 
-        const [companies] = await queryInterface.sequelize.query("SELECT id FROM Companies LIMIT 1;");
-        const companyId = (companies[0] as any).id;
+        const [existingCompanies] = await queryInterface.sequelize.query(
+            "SELECT id FROM Companies WHERE email = 'admin@empresa.com' OR name = 'Mi Empresa' LIMIT 1;"
+        );
+        let companyId = (existingCompanies as any[])[0]?.id;
 
-        // 3. Update all existing data with the default companyId
-        const tables = [
-            "Users",
-            "Tickets",
-            "Messages",
-            "Contacts",
-            "Whatsapps",
-            "Queues",
-            "Settings",
-            "QuickAnswers",
-            "Tags"
-        ];
+        if (!companyId && planId) {
+            const companyData: Record<string, unknown> = {
+                name: "Mi Empresa",
+                email: "admin@empresa.com",
+                planId,
+                status: true,
+                createdAt: new Date(),
+                updatedAt: new Date()
+            };
 
-        for (const table of tables) {
-            await queryInterface.sequelize.query(`UPDATE ${table} SET companyId = ${companyId} WHERE companyId IS NULL;`);
+            const tableDefinition = await queryInterface.describeTable("Companies").catch(() => ({} as Record<string, unknown>));
+            if ((tableDefinition as Record<string, unknown>).password) {
+                (companyData as Record<string, unknown>).password = "default-password";
+            }
+
+            await queryInterface.bulkInsert("Companies", [companyData]);
+
+            const [createdCompanies] = await queryInterface.sequelize.query(
+                "SELECT id FROM Companies WHERE email = 'admin@empresa.com' LIMIT 1;"
+            );
+            companyId = (createdCompanies as any[])[0]?.id;
+        }
+
+        if (companyId) {
+            for (const table of tables) {
+                try {
+                    const tableDefinition = await queryInterface.describeTable(table);
+                    const hasCompanyId = Boolean((tableDefinition as Record<string, unknown>).companyId);
+                    if (hasCompanyId) {
+                        await queryInterface.sequelize.query(
+                            `UPDATE ${table} SET companyId = ${companyId} WHERE companyId IS NULL;`
+                        );
+                    }
+                } catch {
+                    // Ignore tables that do not exist in the current schema.
+                }
+            }
         }
     },
 
-    down: async (queryInterface: QueryInterface) => {
-        // Basic rollback
+    down: async () => {
+        // No-op for safety; this migration is meant to be rerunnable.
     }
 };

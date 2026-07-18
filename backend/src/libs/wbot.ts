@@ -15,22 +15,26 @@ interface Session extends Client {
 const sessions: Session[] = [];
 
 const syncUnreadMessages = async (wbot: Session) => {
-  const chats = await wbot.getChats();
+  try {
+    const chats = await wbot.getChats();
 
-  /* eslint-disable no-restricted-syntax */
-  /* eslint-disable no-await-in-loop */
-  for (const chat of chats) {
-    if (chat.unreadCount > 0) {
-      const unreadMessages = await chat.fetchMessages({
-        limit: chat.unreadCount
-      });
+    /* eslint-disable no-restricted-syntax */
+    /* eslint-disable no-await-in-loop */
+    for (const chat of chats) {
+      if (chat.unreadCount > 0) {
+        const unreadMessages = await chat.fetchMessages({
+          limit: chat.unreadCount
+        });
 
-      for (const msg of unreadMessages) {
-        await handleMessage(msg, wbot);
+        for (const msg of unreadMessages) {
+          await handleMessage(msg, wbot);
+        }
+
+        await chat.sendSeen();
       }
-
-      await chat.sendSeen();
     }
+  } catch (err) {
+    logger.error(`syncUnreadMessages error: ${err}`);
   }
 };
 
@@ -39,24 +43,29 @@ export const initWbot = async (whatsapp: Whatsapp): Promise<Session> => {
     try {
       const io = getIO();
       const sessionName = whatsapp.name;
-      let sessionCfg;
+      let sessionCfg: Record<string, unknown> | undefined;
 
-      if (whatsapp && whatsapp.session) {
-        sessionCfg = JSON.parse(whatsapp.session);
+      if (whatsapp?.session) {
+        sessionCfg = JSON.parse(whatsapp.session) as Record<string, unknown>;
       }
 
-      const args: String = process.env.CHROME_ARGS || "";
+      const args: string = process.env.CHROME_ARGS || "";
 
       const wbot: Session = new Client({
         session: sessionCfg,
         authStrategy: new LocalAuth({ clientId: "bd_" + whatsapp.id }),
+        webVersion: "2.3000.1043390318-alpha",
+        webVersionCache: {
+          type: "remote",
+          remotePath: "https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/{version}.html",
+        },
         puppeteer: {
           executablePath: process.env.CHROME_BIN || undefined,
           // @ts-ignore
           browserWSEndpoint: process.env.CHROME_WS || undefined,
           args: args.split(" ")
         }
-      });
+      } as any);
 
       wbot.initialize();
 
@@ -79,7 +88,7 @@ export const initWbot = async (whatsapp: Whatsapp): Promise<Session> => {
         });
       });
 
-      wbot.on("authenticated", async session => {
+      wbot.on("authenticated", async (session: any) => {
         logger.info(`Session: ${sessionName} AUTHENTICATED`);
         await whatsapp.update({
           status: "CONNECTED",
@@ -149,7 +158,11 @@ export const initWbot = async (whatsapp: Whatsapp): Promise<Session> => {
         }
 
         wbot.sendPresenceAvailable();
-        await syncUnreadMessages(wbot);
+        try {
+          await syncUnreadMessages(wbot);
+        } catch (err) {
+          logger.error(`Error in syncUnreadMessages call: ${err}`);
+        }
 
         resolve(wbot);
       });

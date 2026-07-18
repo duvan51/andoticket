@@ -9,6 +9,7 @@ import GetTicketWbot from "../../helpers/GetTicketWbot";
 import Ticket from "../../models/Ticket";
 
 import formatBody from "../../helpers/Mustache";
+import { getJid } from "../../helpers/GetJid";
 
 interface Request {
   media: Express.Multer.File;
@@ -42,7 +43,7 @@ const SendWhatsAppMedia = async ({
     }
 
     const sentMessage = await wbot.sendMessage(
-      `${ticket.contact.number}@${ticket.isGroup ? "g" : "c"}.us`,
+      ticket.isGroup ? `${ticket.contact.number}@g.us` : getJid(ticket.contact.number),
       newMedia,
       mediaOptions
     );

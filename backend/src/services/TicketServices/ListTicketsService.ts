@@ -17,7 +17,7 @@ interface Request {
   status?: string;
   date?: string;
   showAll?: string;
-  userId: string;
+  userId?: string | number;
   withUnreadMessages?: string;
   queueIds: number[];
   tagId?: string;
@@ -47,20 +47,23 @@ const ListTicketsService = async ({
   isInternal
 }: Request): Promise<Response> => {
   let whereCondition: Filterable["where"] = {};
+  const resolvedUserId = typeof userId === "number" || typeof userId === "string"
+    ? userId
+    : undefined;
 
   if (showAll === "true") {
     whereCondition = {
       queueId: { [Op.or]: [queueIds, null] }
     };
-    if (userId) {
+    if (resolvedUserId !== undefined) {
       whereCondition = {
         ...whereCondition,
-        userId
+        userId: resolvedUserId
       };
     }
   } else {
     whereCondition = {
-      [Op.or]: [{ userId }, { status: "pending" }],
+      [Op.or]: resolvedUserId !== undefined ? [{ userId: resolvedUserId }, { status: "pending" }] : [{ status: "pending" }],
       queueId: { [Op.or]: [queueIds, null] }
     };
   }
@@ -186,12 +189,16 @@ const ListTicketsService = async ({
   }
 
   if (withUnreadMessages === "true") {
-    const user = await ShowUserService(userId);
+    if (resolvedUserId === undefined) {
+      throw new Error("ERR_NO_USER_ID");
+    }
+
+    const user = await ShowUserService(resolvedUserId);
     const userQueueIds = user.queues?.map(queue => queue.id) || [];
 
     whereCondition = {
       ...whereCondition,
-      [Op.or]: [{ userId }, { status: "pending" }],
+      [Op.or]: [{ userId: resolvedUserId }, { status: "pending" }],
       queueId: { [Op.or]: [userQueueIds, null] },
       unreadMessages: { [Op.gt]: 0 }
     };

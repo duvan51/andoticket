@@ -11,6 +11,7 @@ import {
   BelongsTo
 } from "sequelize-typescript";
 import Company from "./Company";
+import User from "./User";
 
 @Table
 class QuickAnswer extends Model<QuickAnswer> {
@@ -37,6 +38,13 @@ class QuickAnswer extends Model<QuickAnswer> {
 
   @BelongsTo(() => Company)
   company: Company;
+
+  @ForeignKey(() => User)
+  @Column
+  userId: number;
+
+  @BelongsTo(() => User)
+  user: User;
 }
 
 export default QuickAnswer;

@@ -18,6 +18,7 @@ type IndexQuery = {
 interface QuickAnswerData {
   shortcut: string;
   message: string;
+  userId?: number | null;
 }
 
 export const index = async (req: Request, res: Response): Promise<Response> => {
@@ -26,7 +27,8 @@ export const index = async (req: Request, res: Response): Promise<Response> => {
   const { quickAnswers, count, hasMore } = await ListQuickAnswerService({
     searchParam,
     pageNumber,
-    companyId: req.user.companyId
+    companyId: req.user.companyId,
+    userId: req.user.id
   });
 
   return res.json({ quickAnswers, count, hasMore });
@@ -46,8 +48,19 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
     throw new AppError(err.message);
   }
 
+  // Non-admins can only create private/personal quick replies.
+  // Admins can set it to group (null) or personal (their id).
+  let targetUserId = null;
+  if (req.user.profile !== "admin") {
+    targetUserId = req.user.id;
+  } else if (newQuickAnswer.userId !== undefined) {
+    targetUserId = newQuickAnswer.userId;
+  }
+
   const quickAnswer = await CreateQuickAnswerService({
-    ...newQuickAnswer
+    ...newQuickAnswer,
+    companyId: req.user.companyId,
+    userId: targetUserId
   });
 
   const io = getIO();
@@ -62,7 +75,10 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
 export const show = async (req: Request, res: Response): Promise<Response> => {
   const { quickAnswerId } = req.params;
 
-  const quickAnswer = await ShowQuickAnswerService(quickAnswerId);
+  const quickAnswer = await ShowQuickAnswerService({
+    id: quickAnswerId,
+    companyId: req.user.companyId
+  });
 
   return res.status(200).json(quickAnswer);
 };
@@ -88,7 +104,10 @@ export const update = async (
 
   const quickAnswer = await UpdateQuickAnswerService({
     quickAnswerData,
-    quickAnswerId
+    quickAnswerId,
+    companyId: req.user.companyId,
+    userId: req.user.id,
+    userProfile: req.user.profile
   });
 
   const io = getIO();
@@ -106,7 +125,12 @@ export const remove = async (
 ): Promise<Response> => {
   const { quickAnswerId } = req.params;
 
-  await DeleteQuickAnswerService(quickAnswerId);
+  await DeleteQuickAnswerService({
+    id: quickAnswerId,
+    companyId: req.user.companyId,
+    userId: req.user.id,
+    userProfile: req.user.profile
+  });
 
   const io = getIO();
   io.emit("quickAnswer", {

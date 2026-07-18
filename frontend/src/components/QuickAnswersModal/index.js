@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useContext } from "react";
 
 import * as Yup from "yup";
 import { Formik, Form, Field } from "formik";
@@ -13,12 +13,15 @@ import {
   DialogContent,
   DialogTitle,
   CircularProgress,
+  FormControlLabel,
+  Checkbox,
 } from "@material-ui/core";
 import { green } from "@material-ui/core/colors";
 import { i18n } from "../../translate/i18n";
 
 import api from "../../services/api";
 import toastError from "../../errors/toastError";
+import { AuthContext } from "../../context/Auth/AuthContext";
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -66,10 +69,12 @@ const QuickAnswersModal = ({
 }) => {
   const classes = useStyles();
   const isMounted = useRef(true);
+  const { user } = useContext(AuthContext);
 
   const initialState = {
     shortcut: "",
     message: "",
+    isGroup: user.profile === "admin",
   };
 
   const [quickAnswer, setQuickAnswer] = useState(initialState);
@@ -84,7 +89,11 @@ const QuickAnswersModal = ({
     const fetchQuickAnswer = async () => {
       if (initialValues) {
         setQuickAnswer((prevState) => {
-          return { ...prevState, ...initialValues };
+          return {
+            ...prevState,
+            ...initialValues,
+            isGroup: initialValues.userId === null,
+          };
         });
       }
 
@@ -93,7 +102,10 @@ const QuickAnswersModal = ({
       try {
         const { data } = await api.get(`/quickAnswers/${quickAnswerId}`);
         if (isMounted.current) {
-          setQuickAnswer(data);
+          setQuickAnswer({
+            ...data,
+            isGroup: data.userId === null,
+          });
         }
       } catch (err) {
         toastError(err);
@@ -109,14 +121,19 @@ const QuickAnswersModal = ({
   };
 
   const handleSaveQuickAnswer = async (values) => {
+    const data = {
+      shortcut: values.shortcut,
+      message: values.message,
+      userId: values.isGroup ? null : user.id,
+    };
     try {
       if (quickAnswerId) {
-        await api.put(`/quickAnswers/${quickAnswerId}`, values);
+        await api.put(`/quickAnswers/${quickAnswerId}`, data);
         handleClose();
       } else {
-        const { data } = await api.post("/quickAnswers", values);
+        const { data: responseData } = await api.post("/quickAnswers", data);
         if (onSave) {
-          onSave(data);
+          onSave(responseData);
         }
         handleClose();
       }
@@ -183,6 +200,21 @@ const QuickAnswersModal = ({
                     fullWidth
                   />
                 </div>
+                {user.profile === "admin" && (
+                  <div className={classes.textQuickAnswerContainer}>
+                    <FormControlLabel
+                      control={
+                        <Field
+                          as={Checkbox}
+                          color="primary"
+                          name="isGroup"
+                          checked={values.isGroup}
+                        />
+                      }
+                      label={i18n.t("quickAnswersModal.form.isGroup")}
+                    />
+                  </div>
+                )}
               </DialogContent>
               <DialogActions>
                 <Button

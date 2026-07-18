@@ -172,6 +172,9 @@ const messages = {
         form: {
           shortcut: "Shortcut",
           message: "Quick Reply",
+          isGroup: "Group Reply (shared with all users)",
+          group: "Group (all can use)",
+          personal: "Personal (only you can use)",
         },
         buttons: {
           okAdd: "Add",
@@ -325,6 +328,9 @@ const messages = {
         table: {
           shortcut: "Shortcut",
           message: "Quick Reply",
+          type: "Type",
+          group: "Group",
+          personal: "Personal",
           actions: "Actions",
         },
         buttons: {

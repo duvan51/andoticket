@@ -5,7 +5,7 @@ export const StartAllWhatsAppsSessions = async (): Promise<void> => {
   const whatsapps = await ListWhatsAppsService();
   if (whatsapps.length > 0) {
     whatsapps.forEach(whatsapp => {
-      if (whatsapp.status === "CONNECTED") {
+      if (whatsapp.status === "CONNECTED" || whatsapp.status === "OPENING") {
         StartWhatsAppSession(whatsapp);
       }
     });

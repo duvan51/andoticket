@@ -32,7 +32,13 @@ const AuthUserService = async ({
 }: Request): Promise<Response> => {
   const user = await User.findOne({
     where: { email },
-    include: ["queues", "company"]
+    include: [
+      "queues",
+      {
+        association: "company",
+        attributes: { exclude: ["passwordHash"] }
+      }
+    ]
   });
 
   if (!user) {

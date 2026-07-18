@@ -43,7 +43,7 @@ let Mp3Recorder = null;
 const initRecorder = async () => {
   if (!Mp3Recorder) {
     try {
-      const MicRecorder = (await import("mic-recorder-to-mp3")).default;
+      const MicRecorder = (await import("mic-recorder-to-mp3-fixed")).default;
       Mp3Recorder = new MicRecorder({ bitRate: 128 });
     } catch (error) {
       console.error("Failed to initialize recorder:", error);

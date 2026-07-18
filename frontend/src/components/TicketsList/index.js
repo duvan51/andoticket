@@ -244,7 +244,7 @@ const reducer = (state, action) => {
 		});
 
 		socket.on("appMessage", data => {
-			if (data.action === "create") {
+			if (data.action === "create" && data.ticket) {
 				if (shouldUpdateTicket(data.ticket)) {
 					dispatch({
 						type: "UPDATE_TICKET_UNREAD_MESSAGES",

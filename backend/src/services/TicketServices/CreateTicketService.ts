@@ -24,7 +24,7 @@ const CreateTicketService = async ({
   }
   const companyId = user.companyId;
 
-  const defaultWhatsapp = await GetDefaultWhatsApp(userId);
+  const defaultWhatsapp = await GetDefaultWhatsApp(userId, companyId);
 
   await CheckContactOpenTickets(contactId, defaultWhatsapp.id);
 

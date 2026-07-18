@@ -17,7 +17,7 @@ import { i18n } from "../../translate/i18n";
 import { AuthContext } from "../../context/Auth/AuthContext";
 import { Can } from "../Can";
 import TicketsQueueSelect from "../TicketsQueueSelect";
-import { Button, FormControl, InputLabel, MenuItem, Select } from "@material-ui/core";
+import { Button, FormControl, InputLabel, MenuItem, Select, Typography } from "@material-ui/core";
 import { amber } from "@material-ui/core/colors";
 import NotificationsActiveIcon from "@material-ui/icons/NotificationsActive";
 import api from "../../services/api";
@@ -220,13 +220,13 @@ const TicketsManager = () => {
     });
 
     socket.on("appMessage", (data) => {
-      if (data.action === "create" && data.ticket.contact.number.startsWith("user_")) {
+      if (data.action === "create" && data.ticket && data.ticket.contact && data.ticket.contact.number.startsWith("user_")) {
         fetchInternalTickets();
       }
     });
 
     socket.on("ticket", (data) => {
-      if (data.action === "update" && data.ticket.contact.number.startsWith("user_")) {
+      if (data.action === "update" && data.ticket && data.ticket.contact && data.ticket.contact.number.startsWith("user_")) {
         fetchInternalTickets();
       }
     });
