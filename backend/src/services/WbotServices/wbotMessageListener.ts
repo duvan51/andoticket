@@ -415,7 +415,16 @@ const handleMessage = async (
       msgContact = await msg.getContact();
     }
 
-    const chat = await msg.getChat();
+    let chat: any;
+    try {
+      chat = await msg.getChat();
+    } catch (err) {
+      logger.error(`Error in msg.getChat() for message from ${msg.from}: ${err}. Using fallback.`);
+      chat = {
+        isGroup: msg.from.endsWith("@g.us") || msg.to.endsWith("@g.us"),
+        unreadCount: 1
+      };
+    }
 
     const whatsapp = await ShowWhatsAppService(wbot.id!);
     const { companyId } = whatsapp;

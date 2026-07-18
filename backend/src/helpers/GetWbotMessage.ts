@@ -2,6 +2,7 @@ import { Message as WbotMessage } from "whatsapp-web.js";
 import Ticket from "../models/Ticket";
 import GetTicketWbot from "./GetTicketWbot";
 import AppError from "../errors/AppError";
+import { getJid } from "./GetJid";
 
 export const GetWbotMessage = async (
   ticket: Ticket,
@@ -10,7 +11,7 @@ export const GetWbotMessage = async (
   const wbot = await GetTicketWbot(ticket);
 
   const wbotChat = await wbot.getChatById(
-    `${ticket.contact.number}@${ticket.isGroup ? "g" : "c"}.us`
+    ticket.isGroup ? `${ticket.contact.number}@g.us` : getJid(ticket.contact.number)
   );
 
   let limit = 20;
