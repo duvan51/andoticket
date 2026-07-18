@@ -1,6 +1,7 @@
 import GetDefaultWhatsApp from "../../helpers/GetDefaultWhatsApp";
 import { getWbot } from "../../libs/wbot";
 import { logger } from "../../utils/logger";
+import { getJid } from "../../helpers/GetJid";
 
 const GetProfilePicUrl = async (number: string): Promise<string> => {
   const defaultWhatsapp = await GetDefaultWhatsApp();
@@ -9,7 +10,7 @@ const GetProfilePicUrl = async (number: string): Promise<string> => {
 
   let profilePicUrl = "";
   try {
-    profilePicUrl = await wbot.getProfilePicUrl(`${number}@c.us`);
+    profilePicUrl = await wbot.getProfilePicUrl(getJid(number));
   } catch (err: any) {
     logger.warn(`Could not get profile pic for ${number}. Error: ${err.message}`);
   }
