@@ -1,4 +1,4 @@
-import { Op, fn, where, col, Filterable, Includeable } from "sequelize";
+import { Op, fn, where, col, Filterable, Includeable, Sequelize } from "sequelize";
 import { startOfDay, endOfDay, parseISO } from "date-fns";
 
 import Ticket from "../../models/Ticket";
@@ -24,6 +24,8 @@ interface Request {
   unanswered?: string;
   isInternal?: string;
   companyId?: number;
+  isGroup?: string;
+  currentUserId?: string | number;
 }
 
 interface Response {
@@ -44,7 +46,9 @@ const ListTicketsService = async ({
   tagId,
   unanswered,
   companyId,
-  isInternal
+  isInternal,
+  isGroup,
+  currentUserId
 }: Request): Promise<Response> => {
   let whereCondition: Filterable["where"] = {};
   const resolvedUserId = typeof userId === "number" || typeof userId === "string"
@@ -52,19 +56,24 @@ const ListTicketsService = async ({
     : undefined;
 
   if (showAll === "true") {
-    whereCondition = {
-      queueId: { [Op.or]: [queueIds, null] }
-    };
     if (resolvedUserId !== undefined) {
       whereCondition = {
-        ...whereCondition,
         userId: resolvedUserId
+      };
+    } else {
+      whereCondition = {
+        queueId: { [Op.or]: [queueIds, null] }
       };
     }
   } else {
     whereCondition = {
-      [Op.or]: resolvedUserId !== undefined ? [{ userId: resolvedUserId }, { status: "pending" }] : [{ status: "pending" }],
-      queueId: { [Op.or]: [queueIds, null] }
+      [Op.or]: [
+        ...(resolvedUserId !== undefined ? [{ userId: resolvedUserId }] : []),
+        {
+          status: "pending",
+          queueId: { [Op.or]: [queueIds, null] }
+        }
+      ]
     };
   }
 
@@ -83,6 +92,31 @@ const ListTicketsService = async ({
       ...whereCondition,
       companyId,
       "$contact.number$": { [Op.notLike]: "user_%" }
+    };
+  }
+
+  if (isGroup === "true") {
+    whereCondition = {
+      ...whereCondition,
+      isGroup: true
+    };
+    if (status) {
+      whereCondition = {
+        ...whereCondition,
+        status
+      };
+    } else {
+      whereCondition = {
+        ...whereCondition,
+        status: { [Op.ne]: "closed" }
+      };
+    }
+    delete (whereCondition as any).userId;
+    delete (whereCondition as any)[Op.or];
+  } else if (isGroup === "false") {
+    whereCondition = {
+      ...whereCondition,
+      isGroup: false
     };
   }
 
@@ -198,8 +232,13 @@ const ListTicketsService = async ({
 
     whereCondition = {
       ...whereCondition,
-      [Op.or]: [{ userId: resolvedUserId }, { status: "pending" }],
-      queueId: { [Op.or]: [userQueueIds, null] },
+      [Op.or]: [
+        { userId: resolvedUserId },
+        {
+          status: "pending",
+          queueId: { [Op.or]: [userQueueIds, null] }
+        }
+      ],
       unreadMessages: { [Op.gt]: 0 }
     };
   }
@@ -215,13 +254,25 @@ const ListTicketsService = async ({
   const limit = 40;
   const offset = limit * (+pageNumber - 1);
 
+  const orderOrder: any[] = [];
+  if (currentUserId !== undefined) {
+    const userIdInt = parseInt(currentUserId.toString(), 10);
+    if (!isNaN(userIdInt)) {
+      orderOrder.push([
+        Sequelize.literal(`CASE WHEN Ticket.userId = ${userIdInt} THEN 0 ELSE 1 END`),
+        "ASC"
+      ]);
+    }
+  }
+  orderOrder.push(["updatedAt", "DESC"]);
+
   const { count, rows: tickets } = await Ticket.findAndCountAll({
     where: whereCondition,
     include: includeCondition,
     distinct: true,
     limit,
     offset,
-    order: [["updatedAt", "DESC"]],
+    order: orderOrder,
     subQuery: false
   });
 

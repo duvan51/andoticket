@@ -6,13 +6,17 @@ interface Request {
   message: string;
   companyId: number;
   userId?: number | null;
+  mediaPath?: string | null;
+  mediaName?: string | null;
 }
 
 const CreateQuickAnswerService = async ({
   shortcut,
   message,
   companyId,
-  userId
+  userId,
+  mediaPath,
+  mediaName
 }: Request): Promise<QuickAnswer> => {
   const nameExists = await QuickAnswer.findOne({
     where: {
@@ -30,7 +34,9 @@ const CreateQuickAnswerService = async ({
     shortcut,
     message,
     companyId,
-    userId: userId || null
+    userId: userId || null,
+    mediaPath: mediaPath || null,
+    mediaName: mediaName || null
   });
 
   return quickAnswer;

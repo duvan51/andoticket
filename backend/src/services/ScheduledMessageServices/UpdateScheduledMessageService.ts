@@ -7,6 +7,10 @@ interface Request {
   sendAt?: string | Date;
   contactId?: number;
   companyId: number;
+  mediaType?: string;
+  mediaUrl?: string;
+  mediaName?: string;
+  status?: string;
 }
 
 const UpdateScheduledMessageService = async ({
@@ -14,7 +18,11 @@ const UpdateScheduledMessageService = async ({
   body,
   sendAt,
   contactId,
-  companyId
+  companyId,
+  mediaType,
+  mediaUrl,
+  mediaName,
+  status
 }: Request): Promise<ScheduledMessage> => {
   const scheduledMessage = await ScheduledMessage.findOne({
     where: { id, companyId }
@@ -28,6 +36,10 @@ const UpdateScheduledMessageService = async ({
   if (body !== undefined) updateData.body = body;
   if (sendAt !== undefined) updateData.sendAt = new Date(sendAt);
   if (contactId !== undefined) updateData.contactId = contactId;
+  if (mediaType !== undefined) updateData.mediaType = mediaType;
+  if (mediaUrl !== undefined) updateData.mediaUrl = mediaUrl;
+  if (mediaName !== undefined) updateData.mediaName = mediaName;
+  if (status !== undefined) updateData.status = status;
 
   await scheduledMessage.update(updateData);
 

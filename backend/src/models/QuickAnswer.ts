@@ -26,6 +26,12 @@ class QuickAnswer extends Model<QuickAnswer> {
   @Column(DataType.TEXT)
   message: string;
 
+  @Column(DataType.TEXT)
+  mediaPath: string;
+
+  @Column(DataType.TEXT)
+  mediaName: string;
+
   @CreatedAt
   createdAt: Date;
 

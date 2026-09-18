@@ -27,6 +27,38 @@ class ScheduledMessage extends Model<ScheduledMessage> {
   @Column(DataType.TEXT)
   body: string;
 
+  @Column({
+    type: DataType.STRING,
+    defaultValue: "message"
+  })
+  mediaType: string;
+
+  @Column(DataType.STRING)
+  get mediaUrl(): string | null {
+    const rawUrl = this.getDataValue("mediaUrl");
+    if (rawUrl) {
+      if (rawUrl.startsWith("http://") || rawUrl.startsWith("https://")) {
+        return rawUrl;
+      }
+      const backendUrl = process.env.BACKEND_URL || "";
+      const proxyPort = process.env.PROXY_PORT;
+      const isStandardPort = !proxyPort || proxyPort === "443" || proxyPort === "80";
+      const hasPort = /:\d+/.test(backendUrl.replace("https://", "").replace("http://", ""));
+      const portSuffix = hasPort || isStandardPort ? "" : `:${proxyPort}`;
+      return `${backendUrl}${portSuffix}/public/${rawUrl}`;
+    }
+    return null;
+  }
+
+  @Column
+  mediaName: string;
+
+  @Column({
+    type: DataType.STRING,
+    defaultValue: "pending"
+  })
+  status: string;
+
   @AllowNull(false)
   @Column(DataType.DATE)
   sendAt: Date;

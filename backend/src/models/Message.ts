@@ -39,9 +39,14 @@ class Message extends Model<Message> {
   get mediaUrl(): string | null {
     const rawUrl = this.getDataValue("mediaUrl");
     if (rawUrl) {
+      if (rawUrl.startsWith("http://") || rawUrl.startsWith("https://")) {
+        return rawUrl;
+      }
       const backendUrl = process.env.BACKEND_URL || "";
+      const proxyPort = process.env.PROXY_PORT;
+      const isStandardPort = !proxyPort || proxyPort === "443" || proxyPort === "80";
       const hasPort = /:\d+/.test(backendUrl.replace("https://", "").replace("http://", ""));
-      const portSuffix = hasPort ? "" : `:${process.env.PROXY_PORT || 8080}`;
+      const portSuffix = hasPort || isStandardPort ? "" : `:${proxyPort}`;
       return `${backendUrl}${portSuffix}/public/${rawUrl}`;
     }
     return null;
@@ -53,6 +58,17 @@ class Message extends Model<Message> {
   @Default(false)
   @Column
   isDeleted: boolean;
+
+  @Default(false)
+  @Column
+  isForwarded: boolean;
+
+  @Default(0)
+  @Column
+  forwardingScore: number;
+
+  @Column(DataType.TEXT)
+  adReply: string;
 
   @CreatedAt
   @Column(DataType.DATE(6))

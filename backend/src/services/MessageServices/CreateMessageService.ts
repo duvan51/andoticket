@@ -8,11 +8,16 @@ interface MessageData {
   ticketId: number;
   body: string;
   contactId?: number;
+  companyId?: number;
   fromMe?: boolean;
   read?: boolean;
   mediaType?: string;
   mediaUrl?: string;
+  quotedMsgId?: string | null;
   ack?: number;
+  isForwarded?: boolean;
+  forwardingScore?: number;
+  adReply?: string | null;
 }
 interface Request {
   messageData: MessageData;

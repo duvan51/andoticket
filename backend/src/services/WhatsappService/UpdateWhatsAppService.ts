@@ -33,9 +33,9 @@ const UpdateWhatsAppService = async ({
   companyId
 }: Request): Promise<Response> => {
   const schema = Yup.object().shape({
-    name: Yup.string().min(2),
-    status: Yup.string(),
-    isDefault: Yup.boolean()
+    name: Yup.string().min(2).nullable().optional(),
+    status: Yup.string().nullable().optional(),
+    isDefault: Yup.boolean().nullable().optional()
   });
 
   const {
@@ -52,10 +52,6 @@ const UpdateWhatsAppService = async ({
     await schema.validate({ name, status, isDefault });
   } catch (err) {
     throw new AppError(err.message);
-  }
-
-  if (queueIds.length > 1 && !greetingMessage) {
-    throw new AppError("ERR_WAPP_GREETING_REQUIRED");
   }
 
   let oldDefaultWhatsapp: Whatsapp | null = null;

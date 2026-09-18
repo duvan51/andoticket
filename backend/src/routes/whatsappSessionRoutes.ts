@@ -23,4 +23,11 @@ whatsappSessionRoutes.delete(
   WhatsAppSessionController.remove
 );
 
+whatsappSessionRoutes.post(
+  "/whatsappsession/:whatsappId/pairing-code",
+  isAuth,
+  WhatsAppSessionController.requestPairingCode
+);
+
 export default whatsappSessionRoutes;
+

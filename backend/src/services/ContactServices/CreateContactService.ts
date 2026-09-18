@@ -1,5 +1,6 @@
 import AppError from "../../errors/AppError";
 import Contact from "../../models/Contact";
+import { Op } from "sequelize";
 
 interface ExtraInfo {
   name: string;
@@ -23,9 +24,25 @@ const CreateContactService = async ({
   profilePicUrl,
   companyId
 }: Request): Promise<Contact> => {
-  const numberExists = await Contact.findOne({
-    where: { number, companyId }
-  });
+  let numberExists: Contact | null = null;
+  if (number && number.length >= 10) {
+    const suffix = number.slice(-10);
+    numberExists = await Contact.findOne({
+      where: {
+        companyId,
+        number: {
+          [Op.or]: [
+            number,
+            { [Op.like]: `%${suffix}` }
+          ]
+        }
+      }
+    });
+  } else {
+    numberExists = await Contact.findOne({
+      where: { number, companyId }
+    });
+  }
 
   if (numberExists) {
     throw new AppError("ERR_DUPLICATED_CONTACT");

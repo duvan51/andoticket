@@ -12,7 +12,17 @@ import {
   DialogContent,
   DialogTitle,
   CircularProgress,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Checkbox,
+  FormControlLabel,
+  IconButton,
+  Typography,
 } from "@material-ui/core";
+import AttachFileIcon from "@material-ui/icons/AttachFile";
+import DeleteIcon from "@material-ui/icons/Delete";
 import Autocomplete from "@material-ui/lab/Autocomplete";
 import { green } from "@material-ui/core/colors";
 import { i18n } from "../../translate/i18n";
@@ -39,6 +49,9 @@ const useStyles = makeStyles((theme) => ({
     marginTop: -12,
     marginLeft: -12,
   },
+  checkboxLabel: {
+    fontSize: "0.8rem",
+  },
   container: {
     display: "flex",
     flexWrap: "wrap",
@@ -47,11 +60,13 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 const ScheduleSchema = Yup.object().shape({
-  body: Yup.string()
-    .min(1, "Too Short!")
-    .required("Required"),
+  body: Yup.string(),
   sendAt: Yup.string().required("Required"),
   contactId: Yup.number().required("Required"),
+  mediaType: Yup.string().required("Required"),
+  sendConfirmation: Yup.boolean(),
+  schedule24hReminder: Yup.boolean(),
+  scheduleSameDayReminder: Yup.boolean(),
 });
 
 const formatDatetime = (date) => {
@@ -70,6 +85,10 @@ const SchedulesModal = ({ open, onClose, scheduleId, onSave, initialValues }) =>
     body: "",
     sendAt: formatDatetime(new Date(new Date().getTime() + 5 * 60000)), // 5 mins in future by default
     contactId: "",
+    mediaType: "message",
+    sendConfirmation: true,
+    schedule24hReminder: true,
+    scheduleSameDayReminder: true,
   };
 
   const [schedule, setSchedule] = useState(initialState);
@@ -77,6 +96,7 @@ const SchedulesModal = ({ open, onClose, scheduleId, onSave, initialValues }) =>
   const [loading, setLoading] = useState(false);
   const [searchParam, setSearchParam] = useState("");
   const [selectedContact, setSelectedContact] = useState(null);
+  const [selectedMedia, setSelectedMedia] = useState(null);
 
   useEffect(() => {
     return () => {
@@ -92,9 +112,13 @@ const SchedulesModal = ({ open, onClose, scheduleId, onSave, initialValues }) =>
         if (initialValues) {
           setSchedule({
             body: initialValues.body || "",
-            sendAt: formatDatetime(new Date(new Date().getTime() + 5 * 60000)),
+            sendAt: initialValues.sendAt ? formatDatetime(initialValues.sendAt) : formatDatetime(new Date(new Date().getTime() + 5 * 60000)),
             contactId: initialValues.contactId || "",
             ticketId: initialValues.ticketId || undefined,
+            mediaType: initialValues.mediaType || "message",
+            sendConfirmation: true,
+            schedule24hReminder: true,
+            scheduleSameDayReminder: true,
           });
           if (initialValues.contact) {
             setSelectedContact(initialValues.contact);
@@ -112,9 +136,12 @@ const SchedulesModal = ({ open, onClose, scheduleId, onSave, initialValues }) =>
         const found = data.find((s) => s.id === scheduleId);
         if (found && isMounted.current) {
           setSchedule({
-            body: found.body,
+            body: found.body || "",
             sendAt: formatDatetime(found.sendAt),
             contactId: found.contactId,
+            mediaType: found.mediaType || "message",
+            mediaUrl: found.mediaUrl || null,
+            mediaName: found.mediaName || null,
           });
           if (found.contact) {
             setSelectedContact(found.contact);
@@ -162,14 +189,52 @@ const SchedulesModal = ({ open, onClose, scheduleId, onSave, initialValues }) =>
     setSelectedContact(null);
     setSearchParam("");
     setOptions([]);
+    setSelectedMedia(null);
+  };
+
+  const handleDeleteMedia = () => {
+    setSelectedMedia(null);
+    setSchedule((prev) => ({
+      ...prev,
+      mediaUrl: null,
+      mediaName: null,
+    }));
   };
 
   const handleSaveSchedule = async (values) => {
+    const formData = new FormData();
+    formData.append("body", values.body || "");
+    formData.append("sendAt", values.sendAt);
+    formData.append("contactId", values.contactId);
+    formData.append("mediaType", values.mediaType);
+    if (values.ticketId) {
+      formData.append("ticketId", values.ticketId);
+    }
+    if (values.sendConfirmation !== undefined) {
+      formData.append("sendConfirmation", values.sendConfirmation);
+    }
+    if (values.schedule24hReminder !== undefined) {
+      formData.append("schedule24hReminder", values.schedule24hReminder);
+    }
+    if (values.scheduleSameDayReminder !== undefined) {
+      formData.append("scheduleSameDayReminder", values.scheduleSameDayReminder);
+    }
+
+    if (selectedMedia) {
+      formData.append("media", selectedMedia);
+    } else if (schedule.mediaUrl) {
+      formData.append("mediaUrl", schedule.mediaUrl);
+      formData.append("mediaName", schedule.mediaName);
+    } else {
+      formData.append("mediaUrl", "");
+      formData.append("mediaName", "");
+    }
+
     try {
       if (scheduleId) {
-        await api.put(`/scheduled-messages/${scheduleId}`, values);
+        await api.put(`/scheduled-messages/${scheduleId}`, formData);
       } else {
-        await api.post("/scheduled-messages", values);
+        await api.post("/scheduled-messages", formData);
       }
       toast.success(i18n.t("schedulesModal.success"));
       if (onSave) {
@@ -200,6 +265,11 @@ const SchedulesModal = ({ open, onClose, scheduleId, onSave, initialValues }) =>
           enableReinitialize={true}
           validationSchema={ScheduleSchema}
           onSubmit={(values, actions) => {
+            if (!values.body && !selectedMedia && !schedule.mediaUrl) {
+              toast.error("Debe ingresar un mensaje o adjuntar un archivo");
+              actions.setSubmitting(false);
+              return;
+            }
             setTimeout(() => {
               handleSaveSchedule(values);
               actions.setSubmitting(false);
@@ -247,6 +317,64 @@ const SchedulesModal = ({ open, onClose, scheduleId, onSave, initialValues }) =>
                     )}
                   />
 
+                  <FormControl variant="outlined" margin="dense" fullWidth>
+                    <InputLabel id="mediaType-label">Tipo de Agendamiento</InputLabel>
+                    <Field
+                      as={Select}
+                      labelId="mediaType-label"
+                      label="Tipo de Agendamiento"
+                      name="mediaType"
+                      onChange={(e) => setFieldValue("mediaType", e.target.value)}
+                    >
+                      <MenuItem value="message">Mensaje de WhatsApp</MenuItem>
+                      <MenuItem value="appointment">Cita / Reunión</MenuItem>
+                    </Field>
+                  </FormControl>
+
+                  {values.mediaType === "appointment" && (
+                    <div style={{ marginTop: 4, marginBottom: 8, display: "flex", flexDirection: "column", gap: "2px" }}>
+                      <FormControlLabel
+                        control={
+                          <Checkbox
+                            checked={values.sendConfirmation}
+                            onChange={(e) => setFieldValue("sendConfirmation", e.target.checked)}
+                            color="primary"
+                            size="small"
+                          />
+                        }
+                        label="Enviar confirmación inmediata por WhatsApp"
+                        style={{ color: "gray" }}
+                        classes={{ label: classes.checkboxLabel }}
+                      />
+                      <FormControlLabel
+                        control={
+                          <Checkbox
+                            checked={values.schedule24hReminder}
+                            onChange={(e) => setFieldValue("schedule24hReminder", e.target.checked)}
+                            color="primary"
+                            size="small"
+                          />
+                        }
+                        label="Programar recordatorio automático 24h antes"
+                        style={{ color: "gray" }}
+                        classes={{ label: classes.checkboxLabel }}
+                      />
+                      <FormControlLabel
+                        control={
+                          <Checkbox
+                            checked={values.scheduleSameDayReminder}
+                            onChange={(e) => setFieldValue("scheduleSameDayReminder", e.target.checked)}
+                            color="primary"
+                            size="small"
+                          />
+                        }
+                        label="Programar recordatorio automático el mismo día (2h antes)"
+                        style={{ color: "gray" }}
+                        classes={{ label: classes.checkboxLabel }}
+                      />
+                    </div>
+                  )}
+
                   <Field
                     as={TextField}
                     label={i18n.t("schedulesModal.form.sendAt")}
@@ -276,6 +404,43 @@ const SchedulesModal = ({ open, onClose, scheduleId, onSave, initialValues }) =>
                     rows={5}
                     fullWidth
                   />
+
+                  <input
+                    type="file"
+                    id="schedule-media"
+                    style={{ display: "none" }}
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files[0]) {
+                        setSelectedMedia(e.target.files[0]);
+                      }
+                    }}
+                  />
+                  <div style={{ display: "flex", gap: "10px", alignItems: "center", marginTop: 8, marginBottom: 8 }}>
+                    <label htmlFor="schedule-media">
+                      <Button
+                        variant="outlined"
+                        component="span"
+                        color="default"
+                        startIcon={<AttachFileIcon />}
+                      >
+                        Adjuntar Archivo
+                      </Button>
+                    </label>
+                  </div>
+                  {(selectedMedia || schedule.mediaName) && (
+                    <div style={{ display: "flex", alignItems: "center", backgroundColor: "#f5f5f5", borderRadius: 4, padding: "8px", margin: "8px 0" }}>
+                      <Typography variant="body2" style={{ flex: 1, textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>
+                        📎 {selectedMedia ? selectedMedia.name : schedule.mediaName}
+                      </Typography>
+                      <IconButton
+                        size="small"
+                        color="secondary"
+                        onClick={handleDeleteMedia}
+                      >
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </div>
+                  )}
                 </div>
               </DialogContent>
               <DialogActions>

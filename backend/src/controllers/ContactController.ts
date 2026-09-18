@@ -13,6 +13,9 @@ import CheckIsValidContact from "../services/WbotServices/CheckIsValidContact";
 import GetProfilePicUrl from "../services/WbotServices/GetProfilePicUrl";
 import AppError from "../errors/AppError";
 import GetContactService from "../services/ContactServices/GetContactService";
+import MergeDuplicateContactsService from "../services/ContactServices/MergeDuplicateContactsService";
+import MergeSingleContactService from "../services/ContactServices/MergeSingleContactService";
+import MergeContactByIdsService from "../services/ContactServices/MergeContactByIdsService";
 
 type IndexQuery = {
   searchParam: string;
@@ -165,4 +168,32 @@ export const remove = async (
   });
 
   return res.status(200).json({ message: "Contact deleted" });
+};
+
+export const mergeDuplicates = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
+  const { companyId } = req.user;
+
+  const result = await MergeDuplicateContactsService(companyId);
+
+  return res.status(200).json(result);
+};
+
+export const merge = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
+  const { contactId, targetContactId } = req.params;
+  const { companyId } = req.user;
+
+  let contact;
+  if (targetContactId) {
+    contact = await MergeContactByIdsService(contactId, targetContactId, companyId);
+  } else {
+    contact = await MergeSingleContactService(contactId, companyId);
+  }
+
+  return res.status(200).json(contact);
 };

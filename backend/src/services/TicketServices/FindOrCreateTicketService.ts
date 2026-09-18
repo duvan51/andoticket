@@ -23,7 +23,11 @@ const FindOrCreateTicketService = async (
   });
 
   if (ticket) {
-    await ticket.update({ unreadMessages });
+    let newUnread = ticket.unreadMessages;
+    if (unreadMessages > 0) {
+      newUnread = Math.max(ticket.unreadMessages + 1, unreadMessages);
+    }
+    await ticket.update({ unreadMessages: newUnread });
   }
 
   if (!ticket && groupContact) {
@@ -37,10 +41,17 @@ const FindOrCreateTicketService = async (
     });
 
     if (ticket) {
+      let newUnread = ticket.unreadMessages;
+      if (unreadMessages > 0) {
+        newUnread = Math.max(ticket.unreadMessages + 1, unreadMessages);
+      }
       await ticket.update({
         status: "pending",
         userId: null,
-        unreadMessages
+        unreadMessages: newUnread,
+        queueId: null,
+        currentOptionId: null,
+        flowStopped: false
       });
     }
   }
@@ -59,10 +70,17 @@ const FindOrCreateTicketService = async (
     });
 
     if (ticket) {
+      let newUnread = ticket.unreadMessages;
+      if (unreadMessages > 0) {
+        newUnread = Math.max(ticket.unreadMessages + 1, unreadMessages);
+      }
       await ticket.update({
         status: "pending",
         userId: null,
-        unreadMessages
+        unreadMessages: newUnread,
+        queueId: null,
+        currentOptionId: null,
+        flowStopped: false
       });
     }
   }

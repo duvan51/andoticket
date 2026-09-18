@@ -22,7 +22,18 @@ import {
   GetApp,
   Lock,
   LocalOffer,
+  Reply,
+  CameraAlt,
+  Videocam,
+  Mic,
+  Description,
+  LocationOn,
+  Person,
+  Storefront,
+  OpenInNew,
 } from "@material-ui/icons";
+
+import { getBackendUrl } from "../../config";
 
 import MarkdownWrapper from "../MarkdownWrapper";
 import VcardPreview from "../VcardPreview";
@@ -34,6 +45,7 @@ import whatsBackground from "../../assets/wa-background.png";
 import api from "../../services/api";
 import toastError from "../../errors/toastError";
 import Audio from "../Audio";
+import { i18n } from "../../translate/i18n";
 
 const useStyles = makeStyles((theme) => ({
   messagesListWrapper: {
@@ -49,7 +61,7 @@ const useStyles = makeStyles((theme) => ({
     display: "flex",
     flexDirection: "column",
     flexGrow: 1,
-    padding: "20px 20px 20px 20px",
+    padding: "20px",
     overflowY: "scroll",
     [theme.breakpoints.down("sm")]: {
       paddingBottom: "90px",
@@ -96,30 +108,6 @@ const useStyles = makeStyles((theme) => ({
     boxShadow: "0 1px 1px #b3b3b3",
   },
 
-  quotedContainerLeft: {
-    margin: "-3px -80px 6px -6px",
-    overflow: "hidden",
-    backgroundColor: "#f0f0f0",
-    borderRadius: "7.5px",
-    display: "flex",
-    position: "relative",
-  },
-
-  quotedMsg: {
-    padding: 10,
-    maxWidth: 300,
-    height: "auto",
-    display: "block",
-    whiteSpace: "pre-wrap",
-    overflow: "hidden",
-  },
-
-  quotedSideColorLeft: {
-    flex: "none",
-    width: "4px",
-    backgroundColor: "#6bcbef",
-  },
-
   messageRight: {
     marginLeft: 20,
     marginTop: 2,
@@ -150,26 +138,200 @@ const useStyles = makeStyles((theme) => ({
     boxShadow: "0 1px 1px #b3b3b3",
   },
 
+  quotedContainerLeft: {
+    margin: "-3px -80px 6px -6px",
+    overflow: "hidden",
+    backgroundColor: "#f0f2f5",
+    borderRadius: "7.5px",
+    display: "flex",
+    position: "relative",
+    cursor: "pointer",
+    transition: "background-color 0.2s ease",
+    "&:hover": {
+      backgroundColor: "#e2e5e9",
+    },
+  },
+
   quotedContainerRight: {
     margin: "-3px -80px 6px -6px",
-    overflowY: "hidden",
+    overflow: "hidden",
     backgroundColor: "#cfe9ba",
     borderRadius: "7.5px",
     display: "flex",
     position: "relative",
+    cursor: "pointer",
+    transition: "background-color 0.2s ease",
+    "&:hover": {
+      backgroundColor: "#b8dc9a",
+    },
   },
 
-  quotedMsgRight: {
-    padding: 10,
-    maxWidth: 300,
-    height: "auto",
-    whiteSpace: "pre-wrap",
+  quotedSideColorLeft: {
+    flex: "none",
+    width: "4px",
+    backgroundColor: "#0288d1",
   },
 
   quotedSideColorRight: {
     flex: "none",
     width: "4px",
-    backgroundColor: "#35cd96",
+    backgroundColor: "#056162",
+  },
+
+  quotedMsgWrapper: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    width: "100%",
+    padding: "6px 8px",
+    minHeight: 38,
+    gap: 8,
+  },
+
+  quotedMsgContent: {
+    display: "flex",
+    flexDirection: "column",
+    flex: 1,
+    minWidth: 0,
+    overflow: "hidden",
+  },
+
+  quotedMsgHeader: {
+    fontSize: "0.75rem",
+    fontWeight: 700,
+    color: "#056162",
+    marginBottom: 2,
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+  },
+
+  quotedMsgText: {
+    fontSize: "0.8rem",
+    color: "#54656f",
+    display: "flex",
+    alignItems: "center",
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+  },
+
+  quotedMediaText: {
+    display: "flex",
+    alignItems: "center",
+    gap: 2,
+    color: "#54656f",
+    fontSize: "0.8rem",
+    fontWeight: 500,
+  },
+
+  quotedThumbnail: {
+    width: 44,
+    height: 44,
+    borderRadius: 4,
+    objectFit: "cover",
+    flexShrink: 0,
+    backgroundColor: "#000",
+  },
+
+  adCardContainer: {
+    margin: "-3px -70px 8px -6px",
+    backgroundColor: "#ffffff",
+    border: "1px solid #d0e2ff",
+    borderRadius: "8px",
+    overflow: "hidden",
+    boxShadow: "0 1px 3px rgba(0, 0, 0, 0.08)",
+    transition: "all 0.2s ease-in-out",
+    textDecoration: "none",
+    color: "inherit",
+    display: "block",
+    "&:hover": {
+      boxShadow: "0 2px 6px rgba(0, 0, 0, 0.15)",
+      backgroundColor: "#f9fbff",
+    },
+  },
+  adCardHeader: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#e8f0fe",
+    padding: "5px 8px",
+    fontSize: "0.72rem",
+    fontWeight: 600,
+    color: "#1a73e8",
+    borderBottom: "1px solid #e0e8f6",
+  },
+  adCardHeaderBadge: {
+    display: "flex",
+    alignItems: "center",
+    gap: 4,
+  },
+  adCardBody: {
+    display: "flex",
+    padding: "8px",
+    gap: "10px",
+    alignItems: "center",
+  },
+  adCardTextContainer: {
+    flex: 1,
+    minWidth: 0,
+  },
+  adCardTitle: {
+    fontWeight: 600,
+    fontSize: "0.85rem",
+    color: "#1e293b",
+    lineHeight: 1.25,
+    marginBottom: "3px",
+    display: "-webkit-box",
+    WebkitLineClamp: 2,
+    WebkitBoxOrient: "vertical",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+  },
+  adCardDescription: {
+    fontSize: "0.75rem",
+    color: "#64748b",
+    lineHeight: 1.2,
+    display: "-webkit-box",
+    WebkitLineClamp: 2,
+    WebkitBoxOrient: "vertical",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+  },
+  adCardThumbnail: {
+    width: 60,
+    height: 60,
+    borderRadius: "6px",
+    objectFit: "cover",
+    flexShrink: 0,
+    backgroundColor: "#f1f5f9",
+    border: "1px solid #e2e8f0",
+  },
+  adCardFooter: {
+    padding: "3px 8px 5px",
+    fontSize: "0.7rem",
+    color: "#1a73e8",
+    display: "flex",
+    alignItems: "center",
+    gap: 4,
+    fontWeight: 500,
+  },
+
+  highlightedMessage: {
+    animation: "$flashHighlight 2s ease-in-out",
+  },
+
+  "@keyframes flashHighlight": {
+    "0%": {
+      backgroundColor: "#fff59d !important",
+      boxShadow: "0 0 16px rgba(255, 235, 59, 0.95) !important",
+    },
+    "70%": {
+      backgroundColor: "#fff59d !important",
+    },
+    "100%": {
+      backgroundColor: "inherit",
+    },
   },
 
   messageActionsButton: {
@@ -180,6 +342,24 @@ const useStyles = makeStyles((theme) => ({
     backgroundColor: "inherit",
     opacity: "90%",
     "&:hover, &.Mui-focusVisible": { backgroundColor: "inherit" },
+  },
+
+  forwardedBadge: {
+    display: "flex",
+    alignItems: "center",
+    marginBottom: 4,
+    color: "#667781",
+    fontSize: "0.75rem",
+    fontStyle: "italic",
+    paddingLeft: 2,
+    paddingTop: 2,
+  },
+
+  forwardedIcon: {
+    transform: "scaleX(-1)",
+    fontSize: 13,
+    marginRight: 4,
+    color: "#8696a0",
   },
 
   messageContactName: {
@@ -498,6 +678,10 @@ const MessagesList = ({ ticketId, isGroup }) => {
       if (data.action === "delete") {
         dispatch({ type: "DELETE_MESSAGE", payload: data.messageId });
       }
+
+      if (data.action === "clean") {
+        dispatch({ type: "RESET" });
+      }
     });
 
     return () => {
@@ -539,6 +723,18 @@ const MessagesList = ({ ticketId, isGroup }) => {
 
   const handleCloseMessageOptionsMenu = (e) => {
     setAnchorEl(null);
+  };
+
+  const handleScrollToQuotedMsg = (targetMsgId) => {
+    if (!targetMsgId) return;
+    const targetEl = document.getElementById(`message-${targetMsgId}`);
+    if (targetEl) {
+      targetEl.scrollIntoView({ behavior: "smooth", block: "center" });
+      targetEl.classList.add(classes.highlightedMessage);
+      setTimeout(() => {
+        targetEl.classList.remove(classes.highlightedMessage);
+      }, 2000);
+    }
   };
 
   const checkMessageMedia = (message) => {
@@ -593,7 +789,7 @@ const MessagesList = ({ ticketId, isGroup }) => {
     }*/
     else if ( /^.*\.(jpe?g|png|gif|webp)?$/i.exec(message.mediaUrl) && message.mediaType === "image") {
       return <ModalImageCors imageUrl={message.mediaUrl} />;
-    } else if (message.mediaType === "audio") {
+    } else if (message.mediaType === "audio" || message.mediaType === "ptt") {
       return <Audio url={message.mediaUrl} />
     } else if (message.mediaType === "video") {
       return (
@@ -621,6 +817,28 @@ const MessagesList = ({ ticketId, isGroup }) => {
         </>
       );
     }
+  };
+
+  const shouldRenderMessageBody = (message) => {
+    if (!message || !message.body) return false;
+
+    // Audios and voice notes never display filename or body text below the player
+    if (message.mediaType === "audio" || message.mediaType === "ptt") {
+      return false;
+    }
+
+    // If body matches mediaUrl or filename
+    if (message.mediaUrl) {
+      if (message.body === message.mediaUrl || message.mediaUrl.endsWith(message.body)) {
+        return false;
+      }
+      // Auto-generated filenames e.g. "xw1Wg-1789131552573.mp3" or "1788205230640.jpg"
+      if (/^[\w\s.-]+\.(mp3|ogg|wav|opus|m4a|aac|jpe?g|png|webp|gif|jfif|mp4|webm|pdf|doc|docx)$/i.test(message.body.trim())) {
+        return false;
+      }
+    }
+
+    return true;
   };
 
   const renderMessageAck = (message) => {
@@ -696,27 +914,185 @@ const MessagesList = ({ ticketId, isGroup }) => {
   };
 
   const renderQuotedMessage = (message) => {
+    const quoted = message.quotedMsg;
+    if (!quoted) return null;
+
+    const renderQuotedBody = () => {
+      const { mediaType, body, mediaUrl } = quoted;
+      if (mediaType === "image") {
+        return (
+          <span className={classes.quotedMediaText}>
+            <CameraAlt style={{ fontSize: 15, marginRight: 4, verticalAlign: "middle" }} />
+            {body && body !== mediaUrl && !body.startsWith("http") ? body : "Foto"}
+          </span>
+        );
+      }
+      if (mediaType === "video") {
+        return (
+          <span className={classes.quotedMediaText}>
+            <Videocam style={{ fontSize: 15, marginRight: 4, verticalAlign: "middle" }} />
+            {body && body !== mediaUrl && !body.startsWith("http") ? body : "Video"}
+          </span>
+        );
+      }
+      if (mediaType === "audio" || mediaType === "ptt") {
+        return (
+          <span className={classes.quotedMediaText}>
+            <Mic style={{ fontSize: 15, marginRight: 4, verticalAlign: "middle" }} />
+            Nota de voz
+          </span>
+        );
+      }
+      if (mediaType === "document") {
+        return (
+          <span className={classes.quotedMediaText}>
+            <Description style={{ fontSize: 15, marginRight: 4, verticalAlign: "middle" }} />
+            {body || "Documento"}
+          </span>
+        );
+      }
+      if (mediaType === "location") {
+        return (
+          <span className={classes.quotedMediaText}>
+            <LocationOn style={{ fontSize: 15, marginRight: 4, verticalAlign: "middle" }} />
+            Ubicación
+          </span>
+        );
+      }
+      if (mediaType === "vcard") {
+        return (
+          <span className={classes.quotedMediaText}>
+            <Person style={{ fontSize: 15, marginRight: 4, verticalAlign: "middle" }} />
+            Contacto
+          </span>
+        );
+      }
+      return <span>{body}</span>;
+    };
+
+    const renderThumbnail = () => {
+      if (!quoted.mediaUrl) return null;
+      if (quoted.mediaType === "image") {
+        return (
+          <img
+            src={quoted.mediaUrl}
+            alt="quote-thumb"
+            className={classes.quotedThumbnail}
+          />
+        );
+      }
+      if (quoted.mediaType === "video") {
+        return (
+          <video
+            src={quoted.mediaUrl}
+            className={classes.quotedThumbnail}
+          />
+        );
+      }
+      return null;
+    };
+
     return (
       <div
         className={clsx(classes.quotedContainerLeft, {
           [classes.quotedContainerRight]: message.fromMe,
         })}
+        onClick={() => handleScrollToQuotedMsg(message.quotedMsgId || quoted.id)}
+        title="Clic para ir al mensaje original"
       >
         <span
           className={clsx(classes.quotedSideColorLeft, {
-            [classes.quotedSideColorRight]: message.quotedMsg?.fromMe,
+            [classes.quotedSideColorRight]: quoted.fromMe,
           })}
         ></span>
-        <div className={classes.quotedMsg}>
-          {!message.quotedMsg?.fromMe && (
-            <span className={classes.messageContactName}>
-              {message.quotedMsg?.contact?.name}
-            </span>
-          )}
-          {message.quotedMsg?.body}
+        <div className={classes.quotedMsgWrapper}>
+          <div className={classes.quotedMsgContent}>
+            <div className={classes.quotedMsgHeader}>
+              <span className={classes.messageContactName}>
+                {quoted.fromMe
+                  ? "Tú"
+                  : quoted.contact?.name || "Contacto"}
+              </span>
+            </div>
+            <div className={classes.quotedMsgText}>
+              {renderQuotedBody()}
+            </div>
+          </div>
+          {renderThumbnail()}
         </div>
       </div>
     );
+  };
+
+  const renderAdReply = (message) => {
+    if (!message.adReply) return null;
+
+    let adData = null;
+    try {
+      adData = typeof message.adReply === "string" ? JSON.parse(message.adReply) : message.adReply;
+    } catch (e) {
+      return null;
+    }
+
+    if (!adData || (!adData.title && !adData.thumbnailUrl && !adData.body)) {
+      return null;
+    }
+
+    const { title, body, thumbnailUrl, sourceUrl } = adData;
+
+    let fullThumbnailUrl = thumbnailUrl;
+    if (thumbnailUrl && !thumbnailUrl.startsWith("http") && !thumbnailUrl.startsWith("data:")) {
+      fullThumbnailUrl = `${getBackendUrl()}/public/${thumbnailUrl}`.replace(/([^:]\/)\/+/g, "$1");
+    }
+
+    const CardContent = (
+      <div className={classes.adCardContainer}>
+        <div className={classes.adCardHeader}>
+          <div className={classes.adCardHeaderBadge}>
+            <Storefront style={{ fontSize: 14 }} />
+            <span>Anuncio de Facebook / Instagram</span>
+          </div>
+          {sourceUrl && <OpenInNew style={{ fontSize: 13, opacity: 0.8 }} />}
+        </div>
+        <div className={classes.adCardBody}>
+          <div className={classes.adCardTextContainer}>
+            {title && <div className={classes.adCardTitle}>{title}</div>}
+            {body && <div className={classes.adCardDescription}>{body}</div>}
+          </div>
+          {fullThumbnailUrl && (
+            <img
+              src={fullThumbnailUrl}
+              alt={title || "Anuncio"}
+              className={classes.adCardThumbnail}
+              onError={(e) => {
+                e.target.style.display = "none";
+              }}
+            />
+          )}
+        </div>
+        {sourceUrl && (
+          <div className={classes.adCardFooter}>
+            <span>Ver anuncio original ↗</span>
+          </div>
+        )}
+      </div>
+    );
+
+    if (sourceUrl) {
+      return (
+        <a
+          href={sourceUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ textDecoration: "none", color: "inherit" }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {CardContent}
+        </a>
+      );
+    }
+
+    return CardContent;
   };
 
   const renderMessages = () => {
@@ -727,13 +1103,16 @@ const MessagesList = ({ ticketId, isGroup }) => {
             <React.Fragment key={`schedule-${message.id}`}>
               {renderDailyTimestamps(message, index)}
               {renderMessageDivider(message, index)}
-              <div className={classes.messageSchedule}>
+              <div id={`message-${message.id}`} className={classes.messageSchedule}>
                 <div className={classes.scheduleHeader}>
                   <AccessTime style={{ fontSize: 14, color: "#546e7a", marginRight: 4 }} />
                   <span>MENSAJE PROGRAMADO - ENVIAR EL {format(parseISO(message.sendAt || message.createdAt), "dd/MM/yyyy HH:mm")}</span>
                 </div>
+                {(message.mediaUrl || message.mediaType === "location" || message.mediaType === "vcard") && checkMessageMedia(message)}
                 <div style={{ overflowWrap: "break-word", paddingRight: 60 }}>
-                  <MarkdownWrapper>{message.body}</MarkdownWrapper>
+                  {shouldRenderMessageBody(message) && (
+                    <MarkdownWrapper>{message.body}</MarkdownWrapper>
+                  )}
                   <span className={classes.timestamp}>
                     {format(parseISO(message.createdAt), "HH:mm")}
                   </span>
@@ -748,7 +1127,7 @@ const MessagesList = ({ ticketId, isGroup }) => {
             <React.Fragment key={message.id}>
               {renderDailyTimestamps(message, index)}
               {renderMessageDivider(message, index)}
-              <div className={classes.messageTag} style={{ backgroundColor: "#eceff1", border: "1px solid #cfd8dc" }}>
+              <div id={`message-${message.id}`} className={classes.messageTag} style={{ backgroundColor: "#eceff1", border: "1px solid #cfd8dc" }}>
                 <div className={classes.tagHeader} style={{ color: "#455a64" }}>
                   <AccessTime style={{ fontSize: 14, color: "#455a64", marginRight: 4 }} />
                   <span>SISTEMA - PROGRAMACIÓN</span>
@@ -769,7 +1148,7 @@ const MessagesList = ({ ticketId, isGroup }) => {
             <React.Fragment key={message.id}>
               {renderDailyTimestamps(message, index)}
               {renderMessageDivider(message, index)}
-              <div className={classes.messageTag}>
+              <div id={`message-${message.id}`} className={classes.messageTag}>
                 <div className={classes.tagHeader}>
                   <LocalOffer style={{ fontSize: 14, color: "#3f51b5", marginRight: 4 }} />
                   <span>SISTEMA - ETIQUETA</span>
@@ -790,7 +1169,7 @@ const MessagesList = ({ ticketId, isGroup }) => {
             <React.Fragment key={message.id}>
               {renderDailyTimestamps(message, index)}
               {renderMessageDivider(message, index)}
-              <div className={classes.messageNote}>
+              <div id={`message-${message.id}`} className={classes.messageNote}>
                 <div className={classes.noteHeader}>
                   <Lock style={{ fontSize: 14, color: "#f57f17", marginRight: 4 }} />
                   <span>NOTA INTERNA</span>
@@ -815,7 +1194,7 @@ const MessagesList = ({ ticketId, isGroup }) => {
             <React.Fragment key={message.id}>
               {renderDailyTimestamps(message, index)}
               {renderMessageDivider(message, index)}
-              <div className={classes.messageLeft}>
+              <div id={`message-${message.id}`} className={classes.messageLeft}>
                 <IconButton
                   variant="contained"
                   size="small"
@@ -826,6 +1205,16 @@ const MessagesList = ({ ticketId, isGroup }) => {
                 >
                   <ExpandMore />
                 </IconButton>
+                {message.isForwarded && (
+                  <div className={classes.forwardedBadge}>
+                    <Reply className={classes.forwardedIcon} />
+                    <span>
+                      {message.forwardingScore > 1
+                        ? i18n.t("forwardModal.forwardedManyTag") || "Reenviado muchas veces"
+                        : i18n.t("forwardModal.forwardedTag") || "Reenviado"}
+                    </span>
+                  </div>
+                )}
                 {isGroup && (
                   <span className={classes.messageContactName}>
                     {message.contact?.name}
@@ -835,8 +1224,11 @@ const MessagesList = ({ ticketId, isGroup }) => {
                   //|| message.mediaType === "multi_vcard" 
                 ) && checkMessageMedia(message)}
                 <div className={classes.textContentItem}>
+                  {renderAdReply(message)}
                   {message.quotedMsg && renderQuotedMessage(message)}
-                  <MarkdownWrapper>{message.body}</MarkdownWrapper>
+                  {shouldRenderMessageBody(message) && (
+                    <MarkdownWrapper>{message.body}</MarkdownWrapper>
+                  )}
                   <span className={classes.timestamp}>
                     {format(parseISO(message.createdAt), "HH:mm")}
                   </span>
@@ -849,7 +1241,7 @@ const MessagesList = ({ ticketId, isGroup }) => {
             <React.Fragment key={message.id}>
               {renderDailyTimestamps(message, index)}
               {renderMessageDivider(message, index)}
-              <div className={classes.messageRight}>
+              <div id={`message-${message.id}`} className={classes.messageRight}>
                 <IconButton
                   variant="contained"
                   size="small"
@@ -860,6 +1252,16 @@ const MessagesList = ({ ticketId, isGroup }) => {
                 >
                   <ExpandMore />
                 </IconButton>
+                {message.isForwarded && (
+                  <div className={classes.forwardedBadge}>
+                    <Reply className={classes.forwardedIcon} />
+                    <span>
+                      {message.forwardingScore > 1
+                        ? i18n.t("forwardModal.forwardedManyTag") || "Reenviado muchas veces"
+                        : i18n.t("forwardModal.forwardedTag") || "Reenviado"}
+                    </span>
+                  </div>
+                )}
                 {(message.mediaUrl || message.mediaType === "location" || message.mediaType === "vcard"
                   //|| message.mediaType === "multi_vcard" 
                 ) && checkMessageMedia(message)}
@@ -875,8 +1277,11 @@ const MessagesList = ({ ticketId, isGroup }) => {
                       className={classes.deletedIcon}
                     />
                   )}
+                  {renderAdReply(message)}
                   {message.quotedMsg && renderQuotedMessage(message)}
-                  <MarkdownWrapper>{message.body}</MarkdownWrapper>
+                  {shouldRenderMessageBody(message) && (
+                    <MarkdownWrapper>{message.body}</MarkdownWrapper>
+                  )}
                   <span className={classes.timestamp}>
                     {format(parseISO(message.createdAt), "HH:mm")}
                     {renderMessageAck(message)}

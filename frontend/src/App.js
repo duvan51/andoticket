@@ -23,6 +23,19 @@ const App = () => {
       palette: {
         primary: { main: "#2576d2" },
       },
+      overrides: {
+        MuiCssBaseline: {
+          "@global": {
+            "html, body, #root": {
+              height: "100%",
+              minHeight: "100vh",
+              margin: 0,
+              padding: 0,
+              overflow: "hidden",
+            },
+          },
+        },
+      },
     },
     locale
   );

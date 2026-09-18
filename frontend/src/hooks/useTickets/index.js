@@ -16,6 +16,7 @@ const useTickets = ({
     unanswered,
     isInternal,
     userId,
+    isGroup,
 }) => {
     const [loading, setLoading] = useState(true);
     const [hasMore, setHasMore] = useState(false);
@@ -40,6 +41,7 @@ const useTickets = ({
                             unanswered,
                             isInternal,
                             userId,
+                            isGroup,
                         },
                     })
                     setTickets(data.tickets)
@@ -92,6 +94,7 @@ const useTickets = ({
         unanswered,
         isInternal,
         userId,
+        isGroup,
     ])
 
     return { tickets, loading, hasMore, count };

@@ -18,6 +18,7 @@ import planRoutes from "./planRoutes";
 import companyRoutes from "./companyRoutes";
 import scheduledMessageRoutes from "./scheduledMessageRoutes";
 import queueOptionRoutes from "./queueOptionRoutes";
+import mediaGalleryRoutes from "./mediaGalleryRoutes";
 
 const routes = Router();
 
@@ -39,5 +40,6 @@ routes.use(planRoutes);
 routes.use(companyRoutes);
 routes.use(scheduledMessageRoutes);
 routes.use(queueOptionRoutes);
+routes.use(mediaGalleryRoutes);
 
 export default routes;

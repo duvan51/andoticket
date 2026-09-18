@@ -13,6 +13,7 @@ import Typography from "@material-ui/core/Typography";
 import Avatar from "@material-ui/core/Avatar";
 import Divider from "@material-ui/core/Divider";
 import Badge from "@material-ui/core/Badge";
+import Checkbox from "@material-ui/core/Checkbox";
 
 import { i18n } from "../../translate/i18n";
 
@@ -142,7 +143,7 @@ const useStyles = makeStyles(theme => ({
 	},
 }));
 
-const TicketListItem = ({ ticket }) => {
+const TicketListItem = ({ ticket, selectedTickets = [], onSelectTicket, selectionMode }) => {
 	const classes = useStyles();
 	const history = useHistory();
 	const [loading, setLoading] = useState(false);
@@ -183,9 +184,13 @@ const TicketListItem = ({ ticket }) => {
 				dense
 				button
 				onClick={e => {
-					handleSelectTicket(ticket.id);
+					if (selectionMode) {
+						onSelectTicket(ticket.id);
+					} else {
+						handleSelectTicket(ticket.id);
+					}
 				}}
-				selected={ticketId && +ticketId === ticket.id}
+				selected={selectionMode ? selectedTickets.includes(ticket.id) : (ticketId && +ticketId === ticket.id)}
 				className={clsx(classes.ticket, {
 					[classes.pendingTicket]: ticket.status === "pending",
 				})}
@@ -200,7 +205,16 @@ const TicketListItem = ({ ticket }) => {
 						className={classes.ticketQueueColor}
 					></span>
 				</Tooltip>
-				{ticket.status === "pending" && (
+				{selectionMode && (
+					<Checkbox
+						color="primary"
+						checked={selectedTickets.includes(ticket.id)}
+						onChange={() => onSelectTicket(ticket.id)}
+						onClick={(e) => e.stopPropagation()}
+						style={{ marginRight: 8, padding: 0 }}
+					/>
+				)}
+				{ticket.status === "pending" && !selectionMode && (
 					<ButtonWithSpinner
 						color="primary"
 						variant="contained"

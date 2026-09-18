@@ -6,6 +6,7 @@ import Message from "../models/Message";
 import User from "../models/User";
 import Contact from "../models/Contact";
 import Ticket from "../models/Ticket";
+import Setting from "../models/Setting";
 
 import ListMessagesService from "../services/MessageServices/ListMessagesService";
 import CreateMessageService from "../services/MessageServices/CreateMessageService";
@@ -13,6 +14,8 @@ import ShowTicketService from "../services/TicketServices/ShowTicketService";
 import DeleteWhatsAppMessage from "../services/WbotServices/DeleteWhatsAppMessage";
 import SendWhatsAppMedia from "../services/WbotServices/SendWhatsAppMedia";
 import SendWhatsAppMessage from "../services/WbotServices/SendWhatsAppMessage";
+import ForwardMessageService from "../services/MessageServices/ForwardMessageService";
+import { logger } from "../utils/logger";
 
 type IndexQuery = {
   pageNumber: string;
@@ -215,16 +218,56 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
   }
 
   try {
+    let parsedQuotedMsg = quotedMsg;
+    if (typeof quotedMsg === "string") {
+      try {
+        parsedQuotedMsg = JSON.parse(quotedMsg);
+      } catch (e) {}
+    }
+
     if (medias) {
       await Promise.all(
         medias.map(async (media: Express.Multer.File) => {
-          await SendWhatsAppMedia({ media, ticket });
+          await SendWhatsAppMedia({ media, ticket, body, quotedMsg: parsedQuotedMsg });
         })
       );
     } else {
-      await SendWhatsAppMessage({ body, ticket, quotedMsg });
+      await SendWhatsAppMessage({ body, ticket, quotedMsg: parsedQuotedMsg });
+    }
+
+    if (!ticket.flowStopped) {
+      const autoStopSetting = await Setting.findOne({
+        where: { key: "botAutoStopOnReply", companyId: ticket.companyId }
+      });
+      const isAutoStopEnabled = !autoStopSetting || autoStopSetting.value !== "disabled";
+
+      if (isAutoStopEnabled) {
+        const updateData: any = {
+          flowStopped: true,
+          currentOptionId: null as any
+        };
+        if (ticket.status === "pending") {
+          updateData.status = "open";
+          updateData.userId = req.user.id;
+        }
+        await ticket.update(updateData);
+        await ticket.reload();
+
+        const io = getIO();
+        io.to(ticket.status)
+          .to("notification")
+          .to(ticket.id.toString())
+          .to(`company-${ticket.companyId}-${ticket.status}`)
+          .to(`company-${ticket.companyId}-notification`)
+          .emit("ticket", {
+            action: "update",
+            ticket
+          });
+      }
     }
   } catch (err) {
+    logger.error(`Error sending message/media in MessageController: ${err}`);
+    console.error("Error sending message/media in MessageController:", err);
     const randomId = Math.random().toString(36).substring(2, 15);
     const msgId = `offline-${randomId}`;
 
@@ -283,4 +326,20 @@ export const remove = async (
   });
 
   return res.send();
+};
+
+export const forward = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
+  const { messageId, ticketIds } = req.body;
+  const { companyId } = req.user;
+
+  await ForwardMessageService({
+    messageId,
+    ticketIds: Array.isArray(ticketIds) ? ticketIds : [ticketIds],
+    companyId
+  });
+
+  return res.status(200).json({ message: "Message forwarded successfully" });
 };

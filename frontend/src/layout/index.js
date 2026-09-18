@@ -33,9 +33,6 @@ const useStyles = makeStyles((theme) => ({
   root: {
     display: "flex",
     height: "100vh",
-    [theme.breakpoints.down("sm")]: {
-      height: "calc(100vh - 56px)",
-    },
   },
   toolbar: {
     paddingRight: 24, // keep right padding when drawer closed
@@ -53,7 +50,9 @@ const useStyles = makeStyles((theme) => ({
       easing: theme.transitions.easing.sharp,
       duration: theme.transitions.duration.leavingScreen,
     }),
-    backgroundColor: theme.palette.background.default,
+    backgroundColor: theme.palette.background.paper,
+    borderBottom: `1px solid ${theme.palette.divider}`,
+    boxShadow: "none",
   },
   appBarShift: {
     marginLeft: drawerWidth,
@@ -95,12 +94,15 @@ const useStyles = makeStyles((theme) => ({
       width: theme.spacing(9),
     },
   },
-  appBarSpacer: {
-    minHeight: "48px",
-  },
+  appBarSpacer: theme.mixins.toolbar,
   content: {
     flex: 1,
-    overflow: "auto",
+    height: "100%",
+    display: "flex",
+    flexDirection: "column",
+    overflow: "hidden",
+    overflowY: "hidden",
+    overflowX: "hidden",
   },
   container: {
     paddingTop: theme.spacing(4),
@@ -215,8 +217,9 @@ const LoggedInLayout = ({ children }) => {
         position="absolute"
         className={clsx(classes.appBar, drawerOpen && classes.appBarShift)}
       >
-        <Toolbar variant="dense" className={classes.toolbar}>
+        <Toolbar className={classes.toolbar}>
           <IconButton
+            id="main-drawer-toggle"
             edge="start"
             aria-label="open drawer"
             onClick={() => setDrawerOpen(!drawerOpen)}
@@ -240,7 +243,7 @@ const LoggedInLayout = ({ children }) => {
             noWrap
             className={classes.title}
           >
-            {user?.company?.name ? `${user.company.name} (${user.name})` : "WhaTicket"}
+            {user?.company?.name ? `${user.company.name} (${user.name})` : "Andoticket"}
           </Typography>
 
           <div className={classes.themeSwitchContainer}>

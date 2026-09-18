@@ -18,6 +18,8 @@ import Kanban from "../pages/Kanban/";
 import Plans from "../pages/Plans/";
 import Companies from "../pages/Companies/";
 import Schedules from "../pages/Schedules/";
+import MediaGallery from "../pages/MediaGallery/";
+import PipelineTable from "../pages/PipelineTable/";
 import { AuthProvider } from "../context/Auth/AuthContext";
 import { WhatsAppsProvider } from "../context/WhatsApp/WhatsAppsContext";
 import { ThemeProvider } from "../context/DarkMode";
@@ -43,9 +45,11 @@ const Routes = () => {
                 <Route exact path="/Queues" component={Queues} isPrivate />
                 <Route exact path="/tags" component={Tags} isPrivate />
                 <Route exact path="/kanban" component={Kanban} isPrivate />
+                <Route exact path="/pipeline-table" component={PipelineTable} isPrivate />
                 <Route exact path="/plans" component={Plans} isPrivate />
                 <Route exact path="/companies" component={Companies} isPrivate />
                 <Route exact path="/schedules" component={Schedules} isPrivate />
+                <Route exact path="/mediaGallery" component={MediaGallery} isPrivate />
               </LoggedInLayout>
             </WhatsAppsProvider>
           </Switch>

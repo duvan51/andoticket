@@ -11,6 +11,8 @@ import { logger } from "../../utils/logger";
 import formatBody from "../../helpers/Mustache";
 import { getJid } from "../../helpers/GetJid";
 
+import CreateMessageService from "../MessageServices/CreateMessageService";
+
 interface Request {
   body: string;
   ticket: Ticket;
@@ -24,8 +26,18 @@ const SendWhatsAppMessage = async ({
 }: Request): Promise<WbotMessage> => {
   let quotedMsgSerializedId: string | undefined;
   if (quotedMsg) {
-    await GetWbotMessage(ticket, quotedMsg.id);
-    quotedMsgSerializedId = SerializeWbotMsgId(ticket, quotedMsg);
+    try {
+      const wbotMsg = await GetWbotMessage(ticket, quotedMsg.id);
+      if (wbotMsg && wbotMsg.id) {
+        quotedMsgSerializedId = (wbotMsg.id as any)._serialized || (wbotMsg.id as any).$1 || wbotMsg.id.id;
+      }
+    } catch (err) {
+      logger.warn(`Could not find quoted message on WhatsApp Web: ${err}. Using fallback serializer.`);
+    }
+
+    if (!quotedMsgSerializedId) {
+      quotedMsgSerializedId = SerializeWbotMsgId(ticket, quotedMsg);
+    }
   }
 
   const wbot = await GetTicketWbot(ticket);
@@ -45,11 +57,41 @@ const SendWhatsAppMessage = async ({
       formatBody(body, contact),
       {
         quotedMessageId: quotedMsgSerializedId,
-        linkPreview: false
+        linkPreview: false,
+        // @ts-ignore
+        ignoreQuoteErrors: true
       }
     );
 
     await ticket.update({ lastMessage: body, lastMessageFromMe: true });
+
+    const getMessageId = (msg: WbotMessage): string => {
+      if (typeof msg?.id === "object" && msg.id !== null) {
+        return msg.id.id || (msg.id as any)._serialized || `chat-${Date.now()}`;
+      }
+      if (typeof msg?.id === "string") {
+        return msg.id;
+      }
+      return `chat-${Date.now()}`;
+    };
+
+    const msgId = getMessageId(sentMessage);
+
+    const messageData = {
+      id: msgId,
+      ticketId: ticket.id,
+      contactId: ticket.contactId,
+      companyId: ticket.companyId,
+      body: formatBody(body, contact),
+      fromMe: true,
+      read: true,
+      mediaType: "chat",
+      quotedMsgId: quotedMsg?.id,
+      ack: 1
+    };
+
+    await CreateMessageService({ messageData });
+
     return sentMessage;
   } catch (err) {
     logger.error(err, "Error in SendWhatsAppMessage");

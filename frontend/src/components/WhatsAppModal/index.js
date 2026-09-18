@@ -81,9 +81,14 @@ const WhatsAppModal = ({ open, onClose, whatsAppId }) => {
 
 			try {
 				const { data } = await api.get(`whatsapp/${whatsAppId}`);
-				setWhatsApp(data);
+				setWhatsApp({
+					...initialState,
+					...data,
+					greetingMessage: data.greetingMessage || "",
+					farewellMessage: data.farewellMessage || "",
+				});
 
-				const whatsQueueIds = data.queues?.map(queue => queue.id);
+				const whatsQueueIds = data.queues?.map(queue => queue.id) || [];
 				setSelectedQueueIds(whatsQueueIds);
 			} catch (err) {
 				toastError(err);
@@ -93,7 +98,13 @@ const WhatsAppModal = ({ open, onClose, whatsAppId }) => {
 	}, [whatsAppId]);
 
 	const handleSaveWhatsApp = async values => {
-		const whatsappData = { ...values, queueIds: selectedQueueIds };
+		const whatsappData = {
+			name: values.name,
+			greetingMessage: values.greetingMessage || "",
+			farewellMessage: values.farewellMessage || "",
+			isDefault: Boolean(values.isDefault),
+			queueIds: selectedQueueIds || []
+		};
 
 		try {
 			if (whatsAppId) {
@@ -168,8 +179,7 @@ const WhatsAppModal = ({ open, onClose, whatsAppId }) => {
 								<div>
 									<Field
 										as={TextField}
-										label={i18n.t("queueModal.form.greetingMessage")}
-										type="greetingMessage"
+										label={i18n.t("whatsappModal.form.greetingMessage")}
 										multiline
 										rows={5}
 										fullWidth
@@ -188,7 +198,6 @@ const WhatsAppModal = ({ open, onClose, whatsAppId }) => {
 									<Field
 										as={TextField}
 										label={i18n.t("whatsappModal.form.farewellMessage")}
-										type="farewellMessage"
 										multiline
 										rows={5}
 										fullWidth

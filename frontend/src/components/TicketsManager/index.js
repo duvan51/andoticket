@@ -17,12 +17,14 @@ import { i18n } from "../../translate/i18n";
 import { AuthContext } from "../../context/Auth/AuthContext";
 import { Can } from "../Can";
 import TicketsQueueSelect from "../TicketsQueueSelect";
-import { Button, FormControl, InputLabel, MenuItem, Select, Typography } from "@material-ui/core";
+import { Button, FormControl, InputLabel, MenuItem, Select, Typography, Dialog, DialogTitle, DialogContent, DialogActions, IconButton } from "@material-ui/core";
+import MenuIcon from "@material-ui/icons/Menu";
 import { amber } from "@material-ui/core/colors";
 import NotificationsActiveIcon from "@material-ui/icons/NotificationsActive";
 import api from "../../services/api";
 import toastError from "../../errors/toastError";
 import PeopleIcon from "@material-ui/icons/People";
+import GroupIcon from "@material-ui/icons/Group";
 import { useHistory } from "react-router-dom";
 import openSocket from "../../services/socket-io";
 import { List, ListItem, ListItemAvatar, ListItemText, Avatar } from "@material-ui/core";
@@ -99,33 +101,39 @@ const useStyles = makeStyles((theme) => ({
     },
   },
   tabAlert: {
-    minWidth: "25% !important",
-    width: "25%",
+    minWidth: "20% !important",
+    width: "20%",
     padding: theme.spacing(0, 1),
     flexGrow: 0,
-    flexBasis: "25% !important",
+    flexBasis: "20% !important",
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
   },
   tabChats: {
-    minWidth: "25% !important",
-    width: "25%",
+    minWidth: "20% !important",
+    width: "20%",
     flexGrow: 0,
-    flexBasis: "25% !important",
+    flexBasis: "20% !important",
   },
   tabLeads: {
-    minWidth: "25% !important",
-    width: "25%",
+    minWidth: "20% !important",
+    width: "20%",
     flexGrow: 0,
-    flexBasis: "25% !important",
+    flexBasis: "20% !important",
+  },
+  tabGroups: {
+    minWidth: "20% !important",
+    width: "20%",
+    flexGrow: 0,
+    flexBasis: "20% !important",
   },
   tabInternal: {
-    minWidth: "25% !important",
-    width: "25%",
+    minWidth: "20% !important",
+    width: "20%",
     padding: theme.spacing(0, 1),
     flexGrow: 0,
-    flexBasis: "25% !important",
+    flexBasis: "20% !important",
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
@@ -159,6 +167,13 @@ const useStyles = makeStyles((theme) => ({
   hide: {
     display: "none !important",
   },
+  mobileMenuButton: {
+    display: "none",
+    [theme.breakpoints.down("sm")]: {
+      display: "inline-flex",
+      color: theme.palette.text.primary,
+    },
+  },
 }));
 
 const TicketsManager = () => {
@@ -172,6 +187,7 @@ const TicketsManager = () => {
   const { user } = useContext(AuthContext);
   const [openCount, setOpenCount] = useState(0);
   const [pendingCount, setPendingCount] = useState(0);
+  const [groupsCount, setGroupsCount] = useState(0);
   const [unansweredCount, setUnansweredCount] = useState(0);
   const userQueueIds = user.queues?.map((q) => q.id) || [];
   const [selectedQueueIds, setSelectedQueueIds] = useState(userQueueIds);
@@ -182,6 +198,142 @@ const TicketsManager = () => {
   const [selectedUserId, setSelectedUserId] = useState(user?.id || "");
   const [allUsers, setAllUsers] = useState([]);
   const history = useHistory();
+
+  const [selectedTickets, setSelectedTickets] = useState([]);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [transferModalOpen, setTransferModalOpen] = useState(false);
+  const [transferUser, setTransferUser] = useState("");
+  const [transferQueue, setTransferQueue] = useState("");
+  const [transferWhatsapp, setTransferWhatsapp] = useState("");
+  const [whatsApps, setWhatsApps] = useState([]);
+  const [queuesList, setQueuesList] = useState([]);
+
+  useEffect(() => {
+    if (transferModalOpen) {
+      const loadData = async () => {
+        try {
+          const { data: whatsappData } = await api.get("/whatsapp/");
+          setWhatsApps(whatsappData);
+          const { data: queueData } = await api.get("/queue");
+          setQueuesList(queueData);
+        } catch (err) {
+          toastError(err);
+        }
+      };
+      loadData();
+    }
+  }, [transferModalOpen]);
+
+  const handleSelectTicket = (id) => {
+    setSelectedTickets((prev) => {
+      if (prev.includes(id)) {
+        return prev.filter((tId) => tId !== id);
+      } else {
+        return [...prev, id];
+      }
+    });
+  };
+
+  const handleToggleSelectionMode = () => {
+    setSelectionMode((prev) => !prev);
+    setSelectedTickets([]);
+  };
+
+  const handleBulkAccept = async () => {
+    if (selectedTickets.length === 0) return;
+    setBulkLoading(true);
+    try {
+      await api.put("/tickets/bulk", {
+        ids: selectedTickets,
+        ticketData: { status: "open", userId: user.id }
+      });
+      setSelectedTickets([]);
+      setSelectionMode(false);
+    } catch (err) {
+      toastError(err);
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const handleBulkResolve = async () => {
+    if (selectedTickets.length === 0) return;
+    setBulkLoading(true);
+    try {
+      await api.put("/tickets/bulk", {
+        ids: selectedTickets,
+        ticketData: { status: "closed" }
+      });
+      setSelectedTickets([]);
+      setSelectionMode(false);
+    } catch (err) {
+      toastError(err);
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedTickets.length === 0) return;
+    if (window.confirm("¿Está seguro de que desea eliminar los chats seleccionados?")) {
+      setBulkLoading(true);
+      try {
+        await api.delete("/tickets/bulk", {
+          data: { ids: selectedTickets }
+        });
+        setSelectedTickets([]);
+        setSelectionMode(false);
+      } catch (err) {
+        toastError(err);
+      } finally {
+        setBulkLoading(false);
+      }
+    }
+  };
+
+  const handleBulkTransfer = async () => {
+    if (selectedTickets.length === 0) return;
+    setBulkLoading(true);
+    try {
+      const ticketData = {};
+      if (transferUser) ticketData.userId = transferUser;
+      if (transferQueue) ticketData.queueId = transferQueue;
+      if (transferWhatsapp) ticketData.whatsappId = transferWhatsapp;
+
+      await api.put("/tickets/bulk", {
+        ids: selectedTickets,
+        ticketData
+      });
+      setSelectedTickets([]);
+      setSelectionMode(false);
+      setTransferModalOpen(false);
+      setTransferUser("");
+      setTransferQueue("");
+      setTransferWhatsapp("");
+    } catch (err) {
+      toastError(err);
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const fetchCompanyQueues = async () => {
+      try {
+        const { data } = await api.get("/queue");
+        if (data && data.length > 0) {
+          const allQueueIds = data.map((q) => q.id);
+          if (!user.queues || user.queues.length === 0 || user.profile?.toUpperCase() === "ADMIN" || user.profile?.toUpperCase() === "SUPERADMIN") {
+            setSelectedQueueIds(allQueueIds);
+          }
+        }
+      } catch (err) {
+        toastError(err);
+      }
+    };
+    fetchCompanyQueues();
+  }, [user]);
 
   useEffect(() => {
     if (user.profile?.toUpperCase() === "ADMIN" || user.profile?.toUpperCase() === "SUPERADMIN") {
@@ -370,6 +522,15 @@ const TicketsManager = () => {
       <Paper square elevation={0} className={classes.ticketOptionsBox}>
         {tab === "search" ? (
           <div className={classes.serachInputWrapper}>
+            <IconButton 
+              className={classes.mobileMenuButton}
+              onClick={() => {
+                const btn = document.getElementById('main-drawer-toggle');
+                if (btn) btn.click();
+              }}
+            >
+              <MenuIcon />
+            </IconButton>
             <SearchIcon className={classes.searchIcon} />
             <InputBase
               className={classes.searchInput}
@@ -381,12 +542,30 @@ const TicketsManager = () => {
           </div>
         ) : (
           <>
+            <IconButton 
+              className={classes.mobileMenuButton}
+              onClick={() => {
+                const btn = document.getElementById('main-drawer-toggle');
+                if (btn) btn.click();
+              }}
+              style={{ marginRight: 6 }}
+            >
+              <MenuIcon />
+            </IconButton>
             <Button
               variant="outlined"
               color="primary"
               onClick={() => setNewTicketModalOpen(true)}
             >
               {i18n.t("ticketsManager.buttons.newTicket")}
+            </Button>
+            <Button
+              variant={selectionMode ? "contained" : "outlined"}
+              color="secondary"
+              onClick={handleToggleSelectionMode}
+              style={{ marginLeft: 6 }}
+            >
+              {selectionMode ? "Cancelar" : "Seleccionar"}
             </Button>
           </>
         )}
@@ -449,6 +628,20 @@ const TicketsManager = () => {
             value={"pending"}
           />
           <Tab
+            className={classes.tabGroups}
+            label={
+              <Badge
+                className={classes.badge}
+                badgeContent={groupsCount}
+                color="primary"
+                overlap="rectangular"
+              >
+                <GroupIcon />
+              </Badge>
+            }
+            value={"groups"}
+          />
+          <Tab
             className={classes.tabInternal}
             label={
               <Badge
@@ -508,6 +701,10 @@ const TicketsManager = () => {
             userId={selectedUserId}
             updateCount={(val) => setOpenCount(val)}
             style={applyPanelStyle("open")}
+            isGroup="false"
+            selectedTickets={selectedTickets}
+            onSelectTicket={handleSelectTicket}
+            selectionMode={selectionMode}
           />
           <TicketsList
             status="pending"
@@ -516,6 +713,10 @@ const TicketsManager = () => {
             userId={selectedUserId}
             updateCount={(val) => setPendingCount(val)}
             style={applyPanelStyle("pending")}
+            isGroup="false"
+            selectedTickets={selectedTickets}
+            onSelectTicket={handleSelectTicket}
+            selectionMode={selectionMode}
           />
           <TicketsList
             status="open"
@@ -526,6 +727,22 @@ const TicketsManager = () => {
             userId={selectedUserId}
             updateCount={(val) => setUnansweredCount(val)}
             style={applyPanelStyle("unanswered")}
+            isGroup="false"
+            selectedTickets={selectedTickets}
+            onSelectTicket={handleSelectTicket}
+            selectionMode={selectionMode}
+          />
+          <TicketsList
+            isGroup="true"
+            showAll={showAllTickets}
+            selectedQueueIds={selectedQueueIds}
+            tagId={selectedTagId}
+            userId={selectedUserId}
+            updateCount={(val) => setGroupsCount(val)}
+            style={applyPanelStyle("groups")}
+            selectedTickets={selectedTickets}
+            onSelectTicket={handleSelectTicket}
+            selectionMode={selectionMode}
           />
           {tabOpen === "internal" && (
             <div style={{ flex: 1, overflowY: "scroll" }}>
@@ -584,6 +801,10 @@ const TicketsManager = () => {
           showAll={true}
           selectedQueueIds={selectedQueueIds}
           tagId={selectedTagId}
+          isGroup="false"
+          selectedTickets={selectedTickets}
+          onSelectTicket={handleSelectTicket}
+          selectionMode={selectionMode}
         />
       </TabPanel>
       <TabPanel value={tab} name="search" className={classes.ticketsWrapper}>
@@ -592,8 +813,125 @@ const TicketsManager = () => {
           showAll={true}
           selectedQueueIds={selectedQueueIds}
           tagId={selectedTagId}
+          isGroup="false"
+          selectedTickets={selectedTickets}
+          onSelectTicket={handleSelectTicket}
+          selectionMode={selectionMode}
         />
       </TabPanel>
+
+      {selectionMode && selectedTickets.length > 0 && (
+        <Paper square elevation={1} style={{ padding: 8, display: "flex", alignItems: "center", gap: 8, backgroundColor: "#f5f5f5" }}>
+          <Typography variant="body2" style={{ fontWeight: "bold", flex: 1 }}>
+            {selectedTickets.length} seleccionados
+          </Typography>
+          <Button
+            variant="contained"
+            color="primary"
+            size="small"
+            onClick={handleBulkAccept}
+            disabled={bulkLoading}
+          >
+            Aceptar
+          </Button>
+          <Button
+            variant="contained"
+            color="primary"
+            size="small"
+            onClick={handleBulkResolve}
+            disabled={bulkLoading}
+          >
+            Resolver
+          </Button>
+          <Button
+            variant="contained"
+            color="primary"
+            size="small"
+            onClick={() => setTransferModalOpen(true)}
+            disabled={bulkLoading}
+          >
+            Transferir
+          </Button>
+          <Button
+            variant="contained"
+            color="secondary"
+            size="small"
+            onClick={handleBulkDelete}
+            disabled={bulkLoading}
+          >
+            Eliminar
+          </Button>
+        </Paper>
+      )}
+      
+      <Dialog
+        open={transferModalOpen}
+        onClose={() => setTransferModalOpen(false)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>Transferir Chats Seleccionados</DialogTitle>
+        <DialogContent dividers style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <Typography variant="body2" color="textSecondary">
+            Seleccione el asesor, departamento o conexión de WhatsApp a la cual desea transferir los {selectedTickets.length} chats seleccionados.
+          </Typography>
+          <FormControl variant="outlined" fullWidth margin="dense">
+            <InputLabel id="transfer-user-label">Asesor</InputLabel>
+            <Select
+              labelId="transfer-user-label"
+              value={transferUser}
+              onChange={(e) => setTransferUser(e.target.value)}
+              label="Asesor"
+            >
+              <MenuItem value=""><em>Ninguno</em></MenuItem>
+              {allUsers.map((u) => (
+                <MenuItem key={u.id} value={u.id}>{u.name}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <FormControl variant="outlined" fullWidth margin="dense">
+            <InputLabel id="transfer-queue-label">Departamento</InputLabel>
+            <Select
+              labelId="transfer-queue-label"
+              value={transferQueue}
+              onChange={(e) => setTransferQueue(e.target.value)}
+              label="Departamento"
+            >
+              <MenuItem value=""><em>Ninguno</em></MenuItem>
+              {queuesList.map((q) => (
+                <MenuItem key={q.id} value={q.id}>{q.name}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <FormControl variant="outlined" fullWidth margin="dense">
+            <InputLabel id="transfer-whatsapp-label">Conexión de WhatsApp</InputLabel>
+            <Select
+              labelId="transfer-whatsapp-label"
+              value={transferWhatsapp}
+              onChange={(e) => setTransferWhatsapp(e.target.value)}
+              label="Conexión de WhatsApp"
+            >
+              <MenuItem value=""><em>Ninguna</em></MenuItem>
+              {whatsApps.map((w) => (
+                <MenuItem key={w.id} value={w.id}>{w.name}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setTransferModalOpen(false)} color="secondary">
+            Cancelar
+          </Button>
+          <Button
+            onClick={handleBulkTransfer}
+            color="primary"
+            variant="contained"
+            disabled={bulkLoading || (!transferUser && !transferQueue && !transferWhatsapp)}
+          >
+            Transferir
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Paper>
   );
 };

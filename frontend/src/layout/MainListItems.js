@@ -20,6 +20,8 @@ import ViewColumnOutlinedIcon from "@material-ui/icons/ViewColumnOutlined";
 import ListIcon from "@material-ui/icons/List";
 import BusinessIcon from "@material-ui/icons/Business";
 import EventIcon from "@material-ui/icons/Event";
+import PhotoLibraryOutlinedIcon from "@material-ui/icons/PhotoLibraryOutlined";
+import TableChartOutlinedIcon from "@material-ui/icons/TableChartOutlined";
 
 import { i18n } from "../translate/i18n";
 import { WhatsAppsContext } from "../context/WhatsApp/WhatsAppsContext";
@@ -126,9 +128,19 @@ const MainListItems = (props) => {
         icon={<EventIcon />}
       />
       <ListItemLink
+        to="/mediaGallery"
+        primary="Galería"
+        icon={<PhotoLibraryOutlinedIcon />}
+      />
+      <ListItemLink
         to="/kanban"
-        primary="Pipeline"
+        primary="Pipeline (Kanban)"
         icon={<ViewColumnOutlinedIcon />}
+      />
+      <ListItemLink
+        to="/pipeline-table"
+        primary="Pipeline (Excel)"
+        icon={<TableChartOutlinedIcon />}
       />
       <ListItemLink
         to="/tags"

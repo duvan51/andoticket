@@ -6,6 +6,10 @@ import DeleteTicketService from "../services/TicketServices/DeleteTicketService"
 import ListTicketsService from "../services/TicketServices/ListTicketsService";
 import ShowTicketService from "../services/TicketServices/ShowTicketService";
 import UpdateTicketService from "../services/TicketServices/UpdateTicketService";
+import BulkUpdateTicketsService from "../services/TicketServices/BulkUpdateTicketsService";
+import BulkDeleteTicketsService from "../services/TicketServices/BulkDeleteTicketsService";
+import ResetTicketFlowService from "../services/TicketServices/ResetTicketFlowService";
+import ExitTicketFlowService from "../services/TicketServices/ExitTicketFlowService";
 import SendWhatsAppMessage from "../services/WbotServices/SendWhatsAppMessage";
 import ShowWhatsAppService from "../services/WhatsappService/ShowWhatsAppService";
 import formatBody from "../helpers/Mustache";
@@ -15,6 +19,7 @@ import { ticketSchema, ticketUpdateSchema, ticketIndexQuerySchema } from "../val
 import User from "../models/User";
 import Contact from "../models/Contact";
 import Ticket from "../models/Ticket";
+import Message from "../models/Message";
 import AppError from "../errors/AppError";
 
 interface IndexQuery {
@@ -29,6 +34,7 @@ interface IndexQuery {
   unanswered?: string;
   isInternal?: string;
   userId?: string;
+  isGroup?: string;
 }
 
 interface TicketData {
@@ -52,7 +58,8 @@ export const index = [
       tagId,
       unanswered,
       isInternal,
-      userId: queryUserId
+      userId: queryUserId,
+      isGroup
     } = req.query as IndexQuery;
 
     let userId: string | number | undefined = req.user.id;
@@ -86,7 +93,9 @@ export const index = [
       tagId,
       unanswered,
       companyId: req.user.companyId,
-      isInternal
+      isInternal,
+      isGroup,
+      currentUserId: req.user.id
     });
 
     return res.status(200).json({ tickets, count, hasMore });
@@ -263,4 +272,94 @@ export const createInternalGroupTicket = async (req: Request, res: Response): Pr
     });
 
   return res.status(200).json(reloadedTicket);
+};
+
+export const clean = async (req: Request, res: Response): Promise<Response> => {
+  const { ticketId } = req.params;
+  const { companyId } = req.user;
+
+  const ticket = await Ticket.findOne({
+    where: { id: ticketId, companyId }
+  });
+
+  if (!ticket) {
+    throw new AppError("ERR_NO_TICKET_FOUND", 404);
+  }
+
+  await Message.destroy({
+    where: { ticketId, companyId }
+  });
+
+  await ticket.update({
+    lastMessage: "",
+    unreadMessages: 0
+  });
+
+  const io = getIO();
+  io.to(ticket.status)
+    .to(ticketId)
+    .to(`company-${companyId}-${ticket.status}`)
+    .emit("ticket", {
+      action: "update",
+      ticket
+    });
+
+  io.to(ticketId).emit("appMessage", {
+    action: "clean",
+    ticketId: +ticketId
+  });
+
+  return res.status(200).json(ticket);
+};
+
+export const bulkUpdate = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
+  const { ids, ticketData } = req.body;
+
+  await BulkUpdateTicketsService({
+    ticketIds: ids,
+    ticketData
+  });
+
+  return res.status(200).json({ message: "Tickets updated" });
+};
+
+export const bulkDelete = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
+  const { ids } = req.body;
+
+  await BulkDeleteTicketsService({
+    ticketIds: ids
+  });
+
+  return res.status(200).json({ message: "Tickets deleted" });
+};
+
+export const resetFlow = async (req: Request, res: Response): Promise<Response> => {
+  const { ticketId } = req.params;
+  const { companyId } = req.user;
+
+  const ticket = await ResetTicketFlowService({
+    ticketId,
+    companyId
+  });
+
+  return res.status(200).json(ticket);
+};
+
+export const exitFlow = async (req: Request, res: Response): Promise<Response> => {
+  const { ticketId } = req.params;
+  const { companyId, id: userId } = req.user;
+
+  const ticket = await ExitTicketFlowService({
+    ticketId,
+    companyId,
+    userId
+  });
+
+  return res.status(200).json(ticket);
 };

@@ -6,6 +6,7 @@ networks:
 services:
 
   backend:
+    restart: unless-stopped
     build:
       context: ./backend
       dockerfile: ./Dockerfile
@@ -19,8 +20,9 @@ services:
       - BACKEND_URL=${BACKEND_URL:-http://localhost}
       - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
       - PROXY_PORT=${PROXY_PORT:-8080}
-      - CHROME_ARGS=--no-sandbox --disable-setuid-sandbox
+      - CHROME_ARGS=--no-sandbox --disable-setuid-sandbox --disable-dev-shm-usage --disable-gpu
       - CHROME_BIN=/usr/bin/google-chrome-stable
+      - WEB_VERSION=${WEB_VERSION:-2.3000.1046755146-alpha}
     ports:
       - ${BACKEND_PORT:-8080}:3000
     volumes:
@@ -30,6 +32,7 @@ services:
       - whaticket
 
   frontend:
+    restart: unless-stopped
     ports:
       - ${FRONTEND_PORT:-3000}:80
       - ${FRONTEND_SSL_PORT:-3001}:443

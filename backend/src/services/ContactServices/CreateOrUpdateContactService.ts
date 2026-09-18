@@ -1,5 +1,6 @@
 import { getIO } from "../../libs/socket";
 import Contact from "../../models/Contact";
+import { Op } from "sequelize";
 
 interface ExtraInfo {
   name: string;
@@ -28,13 +29,34 @@ const CreateOrUpdateContactService = async ({
   const number = isGroup ? rawNumber : rawNumber.replace(/[^0-9]/g, "");
 
   const io = getIO();
-  let contact: Contact | null;
+  let contact: Contact | null = null;
 
   try {
-    // Usar findOrCreate para evitar race conditions
-    const [contactRecord, created] = await Contact.findOrCreate({
-      where: { number, companyId },
-      defaults: {
+    let created = false;
+    if (!isGroup && number && number.length >= 10) {
+      const suffix = number.slice(-10);
+      contact = await Contact.findOne({
+        where: {
+          companyId,
+          number: {
+            [Op.or]: [
+              number,
+              { [Op.like]: `%${suffix}` }
+            ]
+          }
+        }
+      });
+      if (contact && contact.number !== number) {
+        await contact.update({ number });
+      }
+    } else {
+      contact = await Contact.findOne({
+        where: { number, companyId }
+      });
+    }
+
+    if (!contact) {
+      contact = await Contact.create({
         name,
         number,
         profilePicUrl,
@@ -42,10 +64,9 @@ const CreateOrUpdateContactService = async ({
         isGroup,
         extraInfo,
         companyId
-      }
-    });
-
-    contact = contactRecord;
+      });
+      created = true;
+    }
 
     if (created) {
       io.emit("contact", {
@@ -65,7 +86,22 @@ const CreateOrUpdateContactService = async ({
     }
   } catch (error: any) {
     // En caso de cualquier otro error, intentar encontrar el contacto
-    contact = await Contact.findOne({ where: { number, companyId } });
+    if (!isGroup && number && number.length >= 10) {
+      const suffix = number.slice(-10);
+      contact = await Contact.findOne({
+        where: {
+          companyId,
+          number: {
+            [Op.or]: [
+              number,
+              { [Op.like]: `%${suffix}` }
+            ]
+          }
+        }
+      });
+    } else {
+      contact = await Contact.findOne({ where: { number, companyId } });
+    }
     if (!contact) {
       throw error;
     }

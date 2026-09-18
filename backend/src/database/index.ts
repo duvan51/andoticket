@@ -18,6 +18,7 @@ import Company from "../models/Company";
 import Plan from "../models/Plan";
 import ScheduledMessage from "../models/ScheduledMessage";
 import QueueOption from "../models/QueueOption";
+import MediaGallery from "../models/MediaGallery";
 
 // eslint-disable-next-line
 const dbConfig = require("../config/database");
@@ -44,7 +45,8 @@ const models = [
   Company,
   Plan,
   ScheduledMessage,
-  QueueOption
+  QueueOption,
+  MediaGallery
 ];
 
 sequelize.addModels(models);

@@ -19,6 +19,8 @@ interface QuickAnswerData {
   shortcut: string;
   message: string;
   userId?: number | null;
+  mediaPath?: string | null;
+  mediaName?: string | null;
 }
 
 export const index = async (req: Request, res: Response): Promise<Response> => {
@@ -36,10 +38,11 @@ export const index = async (req: Request, res: Response): Promise<Response> => {
 
 export const store = async (req: Request, res: Response): Promise<Response> => {
   const newQuickAnswer: QuickAnswerData = req.body;
+  const requestFile = req.file;
 
   const QuickAnswerSchema = Yup.object().shape({
     shortcut: Yup.string().required(),
-    message: Yup.string().required()
+    message: Yup.string().nullable()
   });
 
   try {
@@ -48,8 +51,6 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
     throw new AppError(err.message);
   }
 
-  // Non-admins can only create private/personal quick replies.
-  // Admins can set it to group (null) or personal (their id).
   let targetUserId = null;
   if (req.user.profile !== "admin") {
     targetUserId = req.user.id;
@@ -57,10 +58,15 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
     targetUserId = newQuickAnswer.userId;
   }
 
+  const mediaPath = requestFile ? requestFile.filename : (newQuickAnswer.mediaPath || null);
+  const mediaName = requestFile ? requestFile.originalname : (newQuickAnswer.mediaName || null);
+
   const quickAnswer = await CreateQuickAnswerService({
     ...newQuickAnswer,
     companyId: req.user.companyId,
-    userId: targetUserId
+    userId: targetUserId,
+    mediaPath,
+    mediaName
   });
 
   const io = getIO();
@@ -88,10 +94,11 @@ export const update = async (
   res: Response
 ): Promise<Response> => {
   const quickAnswerData: QuickAnswerData = req.body;
+  const requestFile = req.file;
 
   const schema = Yup.object().shape({
     shortcut: Yup.string(),
-    message: Yup.string()
+    message: Yup.string().nullable()
   });
 
   try {
@@ -102,8 +109,19 @@ export const update = async (
 
   const { quickAnswerId } = req.params;
 
+  let mediaPath = quickAnswerData.mediaPath;
+  let mediaName = quickAnswerData.mediaName;
+  if (requestFile) {
+    mediaPath = requestFile.filename;
+    mediaName = requestFile.originalname;
+  }
+
   const quickAnswer = await UpdateQuickAnswerService({
-    quickAnswerData,
+    quickAnswerData: {
+      ...quickAnswerData,
+      mediaPath,
+      mediaName
+    },
     quickAnswerId,
     companyId: req.user.companyId,
     userId: req.user.id,

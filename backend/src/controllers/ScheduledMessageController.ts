@@ -18,8 +18,27 @@ export const index = async (req: Request, res: Response): Promise<Response> => {
 };
 
 export const store = async (req: Request, res: Response): Promise<Response> => {
-  const { body, sendAt, contactId, ticketId } = req.body;
+  const {
+    body,
+    sendAt,
+    contactId,
+    ticketId,
+    mediaType,
+    sendConfirmation,
+    schedule24hReminder,
+    scheduleSameDayReminder
+  } = req.body;
   const { id: userId, companyId } = req.user;
+
+  let mediaUrl: string | undefined;
+  let mediaName: string | undefined;
+  let mediaTypeVal = mediaType;
+
+  if (req.file) {
+    mediaUrl = req.file.filename;
+    mediaName = req.file.originalname;
+    mediaTypeVal = req.file.mimetype.split("/")[0];
+  }
 
   const scheduledMessage = await CreateScheduledMessageService({
     body,
@@ -27,7 +46,13 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
     contactId,
     companyId,
     userId: Number(userId),
-    ticketId
+    ticketId,
+    mediaType: mediaTypeVal || "message",
+    mediaUrl,
+    mediaName,
+    sendConfirmation: sendConfirmation === true || sendConfirmation === "true",
+    schedule24hReminder: schedule24hReminder === true || schedule24hReminder === "true",
+    scheduleSameDayReminder: scheduleSameDayReminder === true || scheduleSameDayReminder === "true"
   });
 
   return res.status(200).json(scheduledMessage);
@@ -35,15 +60,32 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
 
 export const update = async (req: Request, res: Response): Promise<Response> => {
   const { id } = req.params;
-  const { body, sendAt, contactId } = req.body;
+  const { body, sendAt, contactId, mediaType, status } = req.body;
   const { companyId } = req.user;
+
+  let mediaUrl: string | undefined;
+  let mediaName: string | undefined;
+  let mediaTypeVal = mediaType;
+
+  if (req.file) {
+    mediaUrl = req.file.filename;
+    mediaName = req.file.originalname;
+    mediaTypeVal = req.file.mimetype.split("/")[0];
+  } else if (req.body.mediaUrl === "") {
+    mediaUrl = "";
+    mediaName = "";
+  }
 
   const scheduledMessage = await UpdateScheduledMessageService({
     id,
     body,
     sendAt,
     contactId,
-    companyId
+    companyId,
+    mediaType: mediaTypeVal,
+    mediaUrl,
+    mediaName,
+    status
   });
 
   return res.status(200).json(scheduledMessage);

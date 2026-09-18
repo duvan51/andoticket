@@ -12,6 +12,7 @@ interface TicketData {
   userId?: number;
   queueId?: number;
   whatsappId?: number;
+  flowStopped?: boolean;
 }
 
 interface Request {
@@ -66,10 +67,19 @@ const UpdateTicketService = async ({
   }
 
   let currentOptionId = ticket.currentOptionId;
+  let flowStopped = ticketData.flowStopped !== undefined ? ticketData.flowStopped : ticket.flowStopped;
+
   if (queueId !== undefined && ticket.queueId !== queueId) {
     currentOptionId = null as any;
+    if (ticketData.flowStopped === undefined) {
+      flowStopped = false;
+    }
   }
   if (status !== undefined && status !== "pending") {
+    currentOptionId = null as any;
+  }
+  if (status === "closed") {
+    flowStopped = false;
     currentOptionId = null as any;
   }
 
@@ -77,7 +87,8 @@ const UpdateTicketService = async ({
     status,
     queueId,
     userId,
-    currentOptionId
+    currentOptionId,
+    flowStopped
   });
 
   if (whatsappId) {

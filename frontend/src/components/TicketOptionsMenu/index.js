@@ -8,11 +8,13 @@ import api from "../../services/api";
 import ConfirmationModal from "../ConfirmationModal";
 import TransferTicketModal from "../TransferTicketModal";
 import toastError from "../../errors/toastError";
+import { toast } from "react-toastify";
 import { Can } from "../Can";
 import { AuthContext } from "../../context/Auth/AuthContext";
 
 const TicketOptionsMenu = ({ ticket, menuOpen, handleClose, anchorEl }) => {
 	const [confirmationOpen, setConfirmationOpen] = useState(false);
+	const [cleanConfirmationOpen, setCleanConfirmationOpen] = useState(false);
 	const [transferTicketModalOpen, setTransferTicketModalOpen] = useState(false);
 	const isMounted = useRef(true);
 	const { user } = useContext(AuthContext);
@@ -31,8 +33,41 @@ const TicketOptionsMenu = ({ ticket, menuOpen, handleClose, anchorEl }) => {
 		}
 	};
 
+	const handleCleanTicket = async () => {
+		try {
+			await api.delete(`/tickets/${ticket.id}/clean`);
+		} catch (err) {
+			toastError(err);
+		}
+	};
+
+	const handleResetFlow = async () => {
+		try {
+			await api.post(`/tickets/${ticket.id}/reset-flow`);
+			toast.success(i18n.t("messagesList.header.buttons.resetFlowSuccess"));
+			handleClose();
+		} catch (err) {
+			toastError(err);
+		}
+	};
+
+	const handleExitFlow = async () => {
+		try {
+			await api.post(`/tickets/${ticket.id}/exit-flow`);
+			toast.success(i18n.t("messagesList.header.buttons.exitFlowSuccess"));
+			handleClose();
+		} catch (err) {
+			toastError(err);
+		}
+	};
+
 	const handleOpenConfirmationModal = e => {
 		setConfirmationOpen(true);
+		handleClose();
+	};
+
+	const handleOpenCleanConfirmationModal = e => {
+		setCleanConfirmationOpen(true);
 		handleClose();
 	};
 
@@ -65,9 +100,22 @@ const TicketOptionsMenu = ({ ticket, menuOpen, handleClose, anchorEl }) => {
 				open={menuOpen}
 				onClose={handleClose}
 			>
+				<MenuItem onClick={handleResetFlow}>
+					{i18n.t("messagesList.header.buttons.resetFlow")}
+				</MenuItem>
+				{!ticket.flowStopped && (
+					<MenuItem onClick={handleExitFlow}>
+						{i18n.t("messagesList.header.buttons.exitFlow")}
+					</MenuItem>
+				)}
 				<MenuItem onClick={handleOpenTransferModal}>
 					{i18n.t("ticketOptionsMenu.transfer")}
 				</MenuItem>
+				{ticket.isGroup && (
+					<MenuItem onClick={handleOpenCleanConfirmationModal}>
+						{i18n.t("ticketOptionsMenu.clean")}
+					</MenuItem>
+				)}
 				<Can
 					role={user.profile}
 					perform="ticket-options:deleteTicket"
@@ -89,6 +137,18 @@ const TicketOptionsMenu = ({ ticket, menuOpen, handleClose, anchorEl }) => {
 				onConfirm={handleDeleteTicket}
 			>
 				{i18n.t("ticketOptionsMenu.confirmationModal.message")}
+			</ConfirmationModal>
+			<ConfirmationModal
+				title={`${i18n.t("ticketOptionsMenu.cleanConfirmationModal.title")}${
+					ticket.id
+				} ${i18n.t("ticketOptionsMenu.cleanConfirmationModal.titleFrom")}${
+					ticket.contact.name
+				}?`}
+				open={cleanConfirmationOpen}
+				onClose={setCleanConfirmationOpen}
+				onConfirm={handleCleanTicket}
+			>
+				{i18n.t("ticketOptionsMenu.cleanConfirmationModal.message")}
 			</ConfirmationModal>
 			<TransferTicketModal
 				modalOpen={transferTicketModalOpen}

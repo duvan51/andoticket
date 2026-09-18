@@ -6,6 +6,14 @@ import { StartAllWhatsAppsSessions } from "./services/WbotServices/StartAllWhats
 import { StartScheduledMessagesLoop } from "./services/ScheduledMessageServices/StartScheduledMessagesLoop";
 import { StartOfflineMessagesLoop } from "./services/WbotServices/StartOfflineMessagesLoop";
 
+process.on("uncaughtException", err => {
+  logger.error(`Uncaught Exception: ${err.message}`, err);
+});
+
+process.on("unhandledRejection", (reason, promise) => {
+  logger.error(`Unhandled Rejection: ${reason}`);
+});
+
 const server = app.listen(process.env.PORT, () => {
   logger.info(`Server started on port: ${process.env.PORT}`);
 });

@@ -13,6 +13,7 @@ interface MetaMessage {
     text: string;
     timestamp: number;
     messageId: string;
+    adReply?: string | null;
 }
 
 const ProcessMetaMessageService = async (
@@ -53,7 +54,8 @@ const ProcessMetaMessageService = async (
         fromMe: false,
         read: false,
         mediaType: "chat",
-        quotedMsgId: null
+        quotedMsgId: null,
+        adReply: message.adReply || null
     };
 
     await ticket.update({

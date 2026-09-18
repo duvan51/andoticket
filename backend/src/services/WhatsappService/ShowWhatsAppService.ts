@@ -22,6 +22,16 @@ const ShowWhatsAppService = async (id: string | number, companyId?: number): Pro
     throw new AppError("ERR_NO_WAPP_FOUND", 404);
   }
 
+  if (!whatsapp.queues || whatsapp.queues.length === 0) {
+    const companyQueues = await Queue.findAll({
+      where: { companyId: whatsapp.companyId },
+      order: [["name", "ASC"]]
+    });
+    if (companyQueues && companyQueues.length > 0) {
+      whatsapp.setDataValue("queues", companyQueues as any);
+    }
+  }
+
   return whatsapp;
 };
 

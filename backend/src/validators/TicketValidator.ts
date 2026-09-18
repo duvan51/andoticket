@@ -13,8 +13,8 @@ export const ticketSchema = Yup.object().shape({
 
 export const ticketUpdateSchema = Yup.object().shape({
   status: Yup.string().oneOf(["open", "pending", "closed"], "Invalid status"),
-  queueId: Yup.number().positive("Queue ID must be positive"),
-  userId: Yup.number().positive("User ID must be positive")
+  queueId: Yup.number().positive("Queue ID must be positive").nullable(),
+  userId: Yup.number().positive("User ID must be positive").nullable()
 });
 
 export const ticketIndexQuerySchema = Yup.object().shape({
@@ -38,5 +38,6 @@ export const ticketIndexQuerySchema = Yup.object().shape({
     }
   ),
   tagId: Yup.string().matches(/^\d+$/, "Tag ID must be a positive integer"),
-  unanswered: Yup.string().oneOf(["true", "false"])
+  unanswered: Yup.string().oneOf(["true", "false"]),
+  isGroup: Yup.string().oneOf(["true", "false"])
 });

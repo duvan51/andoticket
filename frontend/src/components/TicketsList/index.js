@@ -153,7 +153,8 @@ const reducer = (state, action) => {
 };
 
 	const TicketsList = (props) => {
-		const { status, searchParam, showAll, selectedQueueIds, updateCount, style, tagId, unanswered, userId } =
+		const { status, searchParam, showAll, selectedQueueIds, updateCount, style, tagId, unanswered, userId, isGroup,
+			selectedTickets, onSelectTicket, selectionMode } =
 			props;
 	const classes = useStyles();
 	const [pageNumber, setPageNumber] = useState(1);
@@ -163,7 +164,7 @@ const reducer = (state, action) => {
 	useEffect(() => {
 		dispatch({ type: "RESET" });
 		setPageNumber(1);
-	}, [status, searchParam, dispatch, showAll, selectedQueueIds, tagId, unanswered, userId]);
+	}, [status, searchParam, dispatch, showAll, selectedQueueIds, tagId, unanswered, userId, isGroup]);
 
 	const { tickets, hasMore, loading } = useTickets({
 		pageNumber,
@@ -173,11 +174,12 @@ const reducer = (state, action) => {
 		queueIds: JSON.stringify(selectedQueueIds),
 		tagId,
 		unanswered,
-		userId
+		userId,
+		isGroup
 	});
 
 	useEffect(() => {
-		if (!status && !searchParam) return;
+		if (!status && !searchParam && isGroup !== "true") return;
 		dispatch({
 			type: "LOAD_TICKETS",
 			payload: tickets,
@@ -189,12 +191,20 @@ const reducer = (state, action) => {
 
 		const shouldUpdateTicket = ticket => {
 			if (searchParam) return false;
+
+			if (isGroup === "true" && !ticket.isGroup) return false;
+			if (isGroup === "false" && ticket.isGroup) return false;
+
 			if (showAll) {
 				if (ticket.queueId && selectedQueueIds.indexOf(ticket.queueId) === -1) return false;
 				if (userId && ticket.userId !== parseInt(userId, 10)) return false;
 			} else {
 				if (ticket.userId && ticket.userId !== user?.id) return false;
 				if (ticket.queueId && selectedQueueIds.indexOf(ticket.queueId) === -1) return false;
+			}
+
+			if (isGroup === "true") {
+				return ticket.status !== "closed";
 			}
 
 			if (status === "open") {
@@ -268,7 +278,7 @@ const reducer = (state, action) => {
 		return () => {
 			socket.disconnect();
 		};
-	}, [status, searchParam, showAll, user, selectedQueueIds, unanswered]);
+	}, [status, searchParam, showAll, user, selectedQueueIds, unanswered, isGroup]);
 
 	useEffect(() => {
     if (typeof updateCount === "function") {
@@ -314,7 +324,13 @@ const reducer = (state, action) => {
 					) : (
 						<>
 							{ticketsList.map(ticket => (
-								<TicketListItem ticket={ticket} key={ticket.id} />
+								<TicketListItem
+									ticket={ticket}
+									key={ticket.id}
+									selectedTickets={selectedTickets}
+									onSelectTicket={onSelectTicket}
+									selectionMode={selectionMode}
+								/>
 							))}
 						</>
 					)}

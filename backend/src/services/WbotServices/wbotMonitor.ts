@@ -55,19 +55,36 @@ const wbotMonitor = async (
 
     wbot.on("disconnected", async reason => {
       logger.info(`Disconnected session: ${sessionName}, reason: ${reason}`);
+
+      const isLogout = reason === "LOGOUT";
       try {
-        await whatsapp.destroy();
-        logger.info(`WhatsApp connection bd_${whatsapp.id} deleted from database due to phone disconnection.`);
-      } catch (err) {
-        Sentry.captureException(err);
-        logger.error(`Error deleting WhatsApp connection: ${err}`);
+        await removeWbot(whatsapp.id, isLogout);
+      } catch (e) {
+        logger.error(`Error cleaning up wbot session on disconnect: ${e}`);
       }
 
-      await removeWbot(whatsapp.id);
+      try {
+        if (isLogout) {
+          await whatsapp.update({
+            status: "DISCONNECTED",
+            session: "",
+            qrcode: ""
+          });
+        } else {
+          await whatsapp.update({
+            status: "OPENING",
+            session: ""
+          });
+          setTimeout(() => StartWhatsAppSession(whatsapp), 3000);
+        }
+      } catch (err) {
+        Sentry.captureException(err);
+        logger.error(`Error updating whatsapp status on disconnect: ${err}`);
+      }
 
-      io.emit("whatsapp", {
-        action: "delete",
-        whatsappId: whatsapp.id
+      io.emit("whatsappSession", {
+        action: "update",
+        session: whatsapp
       });
     });
   } catch (err) {

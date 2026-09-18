@@ -46,12 +46,34 @@ export const index = async (req: Request, res: Response): Promise<Response> => {
                 let channel = await Whatsapp.findOne({ where: { channel: body.object === "page" ? "facebook" : "instagram" } });
 
                 if (channel && webhook_event.message) {
+                    const referral = webhook_event.referral || webhook_event.message?.referral || webhook_event.postback?.referral;
+                    let adReply: string | null = null;
+                    if (referral) {
+                        const adsContext = referral.ads_context_data || {};
+                        const title = referral.ad_title || adsContext.ad_title || "";
+                        const body = referral.ref || "";
+                        const sourceUrl = referral.source_url || "";
+                        const sourceId = referral.ad_id || "";
+                        const thumbnailUrl = referral.image_url || adsContext.photo_url || referral.video_url || adsContext.video_url || "";
+                        if (title || thumbnailUrl || sourceUrl) {
+                            adReply = JSON.stringify({
+                                title,
+                                body,
+                                sourceUrl,
+                                sourceId,
+                                sourceType: "ad",
+                                thumbnailUrl
+                            });
+                        }
+                    }
+
                     await ProcessMetaMessageService(channel.id, {
                         senderId: sender_psid,
                         recipientId: webhook_event.recipient.id,
                         text: webhook_event.message.text || "(Media/Attachment)",
                         timestamp: webhook_event.timestamp,
-                        messageId: webhook_event.message.mid
+                        messageId: webhook_event.message.mid,
+                        adReply
                     });
                 }
             }

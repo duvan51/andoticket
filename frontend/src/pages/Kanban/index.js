@@ -10,11 +10,19 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  Button
+  Button,
+  FormControl,
+  Select,
+  MenuItem,
+  InputLabel,
+  Chip,
+  ButtonGroup
 } from "@material-ui/core";
 import {
   Chat as ChatIcon,
-  Visibility as VisibilityIcon
+  Visibility as VisibilityIcon,
+  ViewColumn as ViewColumnIcon,
+  TableChart as TableChartIcon
 } from "@material-ui/icons";
 import {
   Timeline,
@@ -32,8 +40,10 @@ import { i18n } from "../../translate/i18n";
 import MainContainer from "../../components/MainContainer";
 import MainHeader from "../../components/MainHeader";
 import Title from "../../components/Title";
+import { toast } from "react-toastify";
 import toastError from "../../errors/toastError";
 import openSocket from "../../services/socket-io";
+import QueueSelectTicket from "../../components/QueueSelectTicket";
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -152,9 +162,23 @@ const getTimelineItems = (ticket) => {
   return items.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 };
 
+const renderStatusBadge = (status) => {
+  if (status === "pending") {
+    return <span style={{ fontSize: "10px", backgroundColor: "#fff8e1", color: "#b78103", border: "1px solid #ffe082", padding: "2px 6px", borderRadius: "10px", fontWeight: "bold" }}>🟡 Nuevo</span>;
+  }
+  if (status === "open") {
+    return <span style={{ fontSize: "10px", backgroundColor: "#e8f5e9", color: "#2e7d32", border: "1px solid #a5d6a7", padding: "2px 6px", borderRadius: "10px", fontWeight: "bold" }}>🟢 En Atención</span>;
+  }
+  if (status === "closed") {
+    return <span style={{ fontSize: "10px", backgroundColor: "#ffebee", color: "#c62828", border: "1px solid #ef9a9a", padding: "2px 6px", borderRadius: "10px", fontWeight: "bold" }}>🔴 Resuelto</span>;
+  }
+  return null;
+};
+
 const CustomCard = ({ id, title, description, label, metadata, style }) => {
   const classes = useStyles();
   const history = useHistory();
+  const { user } = useContext(AuthContext);
   const [open, setOpen] = useState(false);
 
   const ticket = metadata?.ticket;
@@ -178,11 +202,14 @@ const CustomCard = ({ id, title, description, label, metadata, style }) => {
       <div className={classes.customCard} style={style}>
         <div className={classes.cardHeader}>
           <span>{title}</span>
-          {label && (
-            <span style={{ fontSize: "10px", backgroundColor: "#e0e0e0", padding: "2px 6px", borderRadius: "10px", color: "#606060" }}>
-              {label}
-            </span>
-          )}
+          <div style={{ display: "flex", gap: "4px", alignItems: "center" }}>
+            {renderStatusBadge(ticket?.status)}
+            {label && (
+              <span style={{ fontSize: "10px", backgroundColor: "#e0e0e0", padding: "2px 6px", borderRadius: "10px", color: "#606060" }}>
+                {label}
+              </span>
+            )}
+          </div>
         </div>
         <div className={classes.cardBody}>
           {description}
@@ -214,6 +241,9 @@ const CustomCard = ({ id, title, description, label, metadata, style }) => {
               <Typography variant="subtitle2" color="textSecondary">Nombre:</Typography>
               <Typography variant="body1" style={{ marginBottom: "10px", fontWeight: 500 }}>{title}</Typography>
               
+              <Typography variant="subtitle2" color="textSecondary">Estado Actual:</Typography>
+              <div style={{ marginBottom: "10px" }}>{renderStatusBadge(ticket?.status)}</div>
+
               <Typography variant="subtitle2" color="textSecondary">Número:</Typography>
               <Typography variant="body1" style={{ marginBottom: "10px" }}>{ticket?.contact?.number}</Typography>
               
@@ -231,6 +261,13 @@ const CustomCard = ({ id, title, description, label, metadata, style }) => {
 
               <Typography variant="subtitle2" color="textSecondary">Último Mensaje:</Typography>
               <Typography variant="body1" style={{ marginBottom: "10px" }}>{description}</Typography>
+
+              {ticket && (
+                <>
+                  <Typography variant="subtitle2" color="textSecondary">Departamento / Cola:</Typography>
+                  <QueueSelectTicket ticket={ticket} />
+                </>
+              )}
               
               <Typography variant="subtitle2" color="textSecondary">Etiquetas Actuales:</Typography>
               <div style={{ display: "flex", gap: "4px", flexWrap: "wrap", marginTop: "4px" }}>
@@ -284,22 +321,21 @@ const CustomCard = ({ id, title, description, label, metadata, style }) => {
                       contentText = `Nota interna: "${item.body}"`;
                       dotBgColor = "#fbc02d"; // dark yellow
                     } else if (item.type === "tag") {
-                      contentText = item.body; // e.g. "Etiqueta agregada: 'Negociación'"
+                      contentText = item.body;
                       dotBgColor = "#9c27b0"; // purple
                     } else if (item.type === "schedule_history") {
                       contentText = item.body;
                       dotBgColor = "#607d8b"; // grey-blue
                     } else {
-                      // tracking item
                       if (idx === 0) {
                         contentText = "Inicio de la conversación";
-                        dotBgColor = "#e91e63"; // pink/pink-red
+                        dotBgColor = "#e91e63";
                       } else if (!item.userId) {
                         contentText = "Ticket devuelto a la cola de espera (Pendientes)";
-                        dotBgColor = "#ff9800"; // orange
+                        dotBgColor = "#ff9800";
                       } else {
                         contentText = `Asignado a asesor: ${item.user?.name || "Desconocido"}`;
-                        dotBgColor = "#2196f3"; // blue
+                        dotBgColor = "#2196f3";
                       }
 
                       if (item.finishedAt) {
@@ -307,7 +343,7 @@ const CustomCard = ({ id, title, description, label, metadata, style }) => {
                         contentText += ` (Duración: ${durationText})`;
                       } else {
                         contentText += " (En atención actualmente)";
-                        dotBgColor = "#4caf50"; // green
+                        dotBgColor = "#4caf50";
                       }
                     }
 
@@ -334,6 +370,54 @@ const CustomCard = ({ id, title, description, label, metadata, style }) => {
           </div>
         </DialogContent>
         <DialogActions>
+          {ticket?.status === "pending" && (
+            <Button
+              onClick={async () => {
+                try {
+                  await api.put(`/tickets/${ticket.id}`, { status: "open", userId: user.id });
+                  toast.success("Lead aceptado y puesto En Atención");
+                  handleCloseDetails();
+                } catch (err) { toastError(err); }
+              }}
+              color="primary"
+              variant="contained"
+            >
+              Aceptar Lead
+            </Button>
+          )}
+
+          {ticket?.status === "open" && (
+            <Button
+              onClick={async () => {
+                try {
+                  await api.put(`/tickets/${ticket.id}`, { status: "closed" });
+                  toast.success("Lead marcado como Resuelto");
+                  handleCloseDetails();
+                } catch (err) { toastError(err); }
+              }}
+              style={{ backgroundColor: "#2e7d32", color: "#fff" }}
+              variant="contained"
+            >
+              Resolver Lead
+            </Button>
+          )}
+
+          {ticket?.status === "closed" && (
+            <Button
+              onClick={async () => {
+                try {
+                  await api.put(`/tickets/${ticket.id}`, { status: "open" });
+                  toast.success("Lead reabierto En Atención");
+                  handleCloseDetails();
+                } catch (err) { toastError(err); }
+              }}
+              color="primary"
+              variant="outlined"
+            >
+              Reabrir Lead
+            </Button>
+          )}
+
           <Button onClick={(e) => handleOpenChat(e)} color="primary" variant="contained" startIcon={<ChatIcon />}>
             Ir al Chat
           </Button>
@@ -351,33 +435,58 @@ const Kanban = () => {
   const [boardData, setBoardData] = useState({ lanes: [] });
   const { user } = useContext(AuthContext);
   const [showAllTickets, setShowAllTickets] = useState(false);
+  const [statusFilter, setStatusFilter] = useState("all");
 
   const fetchTickets = async () => {
     try {
-      const { data: tags } = await api.get("/tags");
-      const { data: ticketsData } = await api.get("/tickets", {
-        params: { status: "open", showAll: showAllTickets ? "true" : "false" },
-      });
+      const { data: queues } = await api.get("/queue");
+      const params = {
+        showAll: showAllTickets ? "true" : "false"
+      };
+      if (statusFilter !== "all") {
+        params.status = statusFilter;
+      }
 
-      const lanes = tags.map((tag) => {
+      const { data: ticketsData } = await api.get("/tickets", { params });
+
+      const lanes = queues.map((queue) => {
         const filteredTickets = ticketsData.tickets.filter((ticket) =>
-          ticket.tags?.some((t) => t.id === tag.id)
+          ticket.queueId === queue.id || ticket.queue?.id === queue.id
         ).map(ticket => ({
           id: ticket.id.toString(),
-          title: ticket.contact.name,
+          title: ticket.contact?.name || "Sin nombre",
           description: ticket.lastMessage || "Sin mensajes",
           label: ticket.whatsapp?.name,
           metadata: { ticketId: ticket.id, ticket },
-          style: { borderLeft: `5px solid ${tag.color}` }
+          style: { borderLeft: `5px solid ${queue.color || "#2576d2"}` }
         }));
 
         return {
-          id: tag.id.toString(),
-          title: tag.name,
+          id: queue.id.toString(),
+          title: queue.name,
           label: filteredTickets.length.toString(),
           cards: filteredTickets,
           style: { backgroundColor: "#f4f4f4", width: 280 }
         };
+      });
+
+      const unassignedTickets = ticketsData.tickets.filter(
+        (ticket) => !ticket.queueId && !ticket.queue?.id
+      ).map(ticket => ({
+        id: ticket.id.toString(),
+        title: ticket.contact?.name || "Sin nombre",
+        description: ticket.lastMessage || "Sin mensajes",
+        label: ticket.whatsapp?.name,
+        metadata: { ticketId: ticket.id, ticket },
+        style: { borderLeft: `5px solid #9e9e9e` }
+      }));
+
+      lanes.unshift({
+        id: "unassigned",
+        title: "Sin Departamento",
+        label: unassignedTickets.length.toString(),
+        cards: unassignedTickets,
+        style: { backgroundColor: "#eeeeee", width: 280 }
       });
 
       setBoardData({ lanes });
@@ -388,7 +497,7 @@ const Kanban = () => {
 
   useEffect(() => {
     fetchTickets();
-  }, [showAllTickets]);
+  }, [showAllTickets, statusFilter]);
 
   useEffect(() => {
     const socket = openSocket();
@@ -414,13 +523,9 @@ const Kanban = () => {
     if (sourceLaneId === targetLaneId) return;
 
     try {
-      const { data: tags } = await api.get("/tags");
-      const targetTag = tags.find(t => t.id.toString() === targetLaneId);
-      
-      if (targetTag) {
-        // Sync tags replace or add? For now, we'll replace for simplicity in Kanban
-        await api.post(`/tags/sync/${cardId}`, { tags: [targetTag] });
-      }
+      const newQueueId = targetLaneId === "unassigned" ? null : parseInt(targetLaneId);
+      await api.put(`/tickets/${cardId}`, { queueId: newQueueId });
+      toast.success("Departamento actualizado correctamente");
     } catch (err) {
       toastError(err);
     }
@@ -429,17 +534,49 @@ const Kanban = () => {
   return (
     <MainContainer>
       <MainHeader>
-        <Title>Pipeline (Kanban)</Title>
-        {(user.profile?.toLowerCase() === "admin" || user.profile?.toLowerCase() === "superadmin") && (
-          <Button
-            variant="outlined"
-            color="primary"
-            onClick={() => setShowAllTickets(prev => !prev)}
-            style={{ marginLeft: "auto" }}
-          >
-            {showAllTickets ? "Ver solo mis Leads" : "Ver todos los Leads"}
-          </Button>
-        )}
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          <Title>Pipeline (Kanban)</Title>
+          <ButtonGroup size="small" variant="outlined" style={{ marginLeft: 12 }}>
+            <Button
+              startIcon={<ViewColumnIcon />}
+              variant="contained"
+              color="primary"
+            >
+              Tablero Kanban
+            </Button>
+            <Button
+              startIcon={<TableChartIcon />}
+              onClick={() => history.push("/pipeline-table")}
+            >
+              Tabla Excel
+            </Button>
+          </ButtonGroup>
+        </div>
+        <div style={{ display: "flex", gap: "12px", alignItems: "center", marginLeft: "auto" }}>
+          <FormControl variant="outlined" size="small" style={{ minWidth: 200, backgroundColor: "#fff", borderRadius: 4 }}>
+            <InputLabel id="status-filter-label">Estado del Lead</InputLabel>
+            <Select
+              labelId="status-filter-label"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              label="Estado del Lead"
+            >
+              <MenuItem value="all">⚡ Todos los Estados</MenuItem>
+              <MenuItem value="pending">🟡 Nuevos Leads (Pendientes)</MenuItem>
+              <MenuItem value="open">🟢 En Atención (Abiertos)</MenuItem>
+              <MenuItem value="closed">🔴 Resueltos (Cerrados)</MenuItem>
+            </Select>
+          </FormControl>
+          {(user.profile?.toLowerCase() === "admin" || user.profile?.toLowerCase() === "superadmin") && (
+            <Button
+              variant="outlined"
+              color="primary"
+              onClick={() => setShowAllTickets(prev => !prev)}
+            >
+              {showAllTickets ? "Ver solo mis Leads" : "Ver todos los Leads"}
+            </Button>
+          )}
+        </div>
       </MainHeader>
       <div className={classes.boardContainer}>
         <Board

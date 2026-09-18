@@ -48,6 +48,10 @@ class Ticket extends Model<Ticket> {
   @Column
   isGroup: boolean;
 
+  @Default(false)
+  @Column
+  flowStopped: boolean;
+
   @CreatedAt
   createdAt: Date;
 

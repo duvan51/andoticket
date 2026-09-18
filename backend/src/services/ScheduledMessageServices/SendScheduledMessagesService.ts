@@ -1,4 +1,7 @@
 import { Op } from "sequelize";
+import path from "path";
+import fs from "fs";
+import uploadConfig from "../../config/upload";
 import ScheduledMessage from "../../models/ScheduledMessage";
 import Ticket from "../../models/Ticket";
 import Contact from "../../models/Contact";
@@ -6,13 +9,31 @@ import Whatsapp from "../../models/Whatsapp";
 import Message from "../../models/Message";
 import FindOrCreateTicketService from "../TicketServices/FindOrCreateTicketService";
 import SendWhatsAppMessage from "../WbotServices/SendWhatsAppMessage";
+import SendWhatsAppMedia from "../WbotServices/SendWhatsAppMedia";
 import { logger } from "../../utils/logger";
 import { getIO } from "../../libs/socket";
+
+const getMimeType = (filename: string): string => {
+  const ext = path.extname(filename).toLowerCase();
+  if ([".jpg", ".jpeg", ".png", ".gif", ".webp"].includes(ext)) {
+    return `image/${ext.replace(".", "")}`;
+  }
+  if ([".mp4", ".3gp", ".avi", ".mov", ".mkv"].includes(ext)) {
+    return `video/${ext.replace(".", "")}`;
+  }
+  if ([".mp3", ".ogg", ".wav", ".m4a", ".aac", ".opus"].includes(ext)) {
+    return `audio/${ext.replace(".", "")}`;
+  }
+  return "application/octet-stream";
+};
 
 export const SendScheduledMessagesService = async (): Promise<void> => {
   const scheduledMessages = await ScheduledMessage.findAll({
     where: {
       sentAt: null,
+      status: {
+        [Op.or]: ["pending", null]
+      },
       sendAt: {
         [Op.lte]: new Date()
       }
@@ -52,10 +73,39 @@ export const SendScheduledMessagesService = async (): Promise<void> => {
         );
       }
 
-      await SendWhatsAppMessage({
-        body: schedule.body,
-        ticket
-      });
+      const rawMediaUrl = schedule.getDataValue("mediaUrl");
+      if (rawMediaUrl) {
+        const mediaPath = path.join(uploadConfig.directory, rawMediaUrl);
+        if (fs.existsSync(mediaPath)) {
+          const simulatedMedia = {
+            path: mediaPath,
+            filename: rawMediaUrl,
+            originalname: schedule.mediaName || rawMediaUrl,
+            mimetype: getMimeType(rawMediaUrl)
+          } as Express.Multer.File;
+
+          await SendWhatsAppMedia({
+            media: simulatedMedia,
+            ticket,
+            body: schedule.body
+          });
+        } else {
+          logger.warn(`Media file not found at ${mediaPath} for scheduled message ${schedule.id}, sending text only`);
+          if (schedule.body) {
+            await SendWhatsAppMessage({
+              body: schedule.body,
+              ticket
+            });
+          } else {
+            throw new Error("File not found and no message body provided");
+          }
+        }
+      } else {
+        await SendWhatsAppMessage({
+          body: schedule.body,
+          ticket
+        });
+      }
 
       await schedule.update({
         sentAt: new Date(),

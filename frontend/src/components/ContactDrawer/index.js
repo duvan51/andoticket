@@ -1,4 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useContext } from "react";
+import { AuthContext } from "../../context/Auth/AuthContext";
+import api from "../../services/api";
+import { toast } from "react-toastify";
+import toastError from "../../errors/toastError";
 
 import { makeStyles } from "@material-ui/core/styles";
 import Typography from "@material-ui/core/Typography";
@@ -14,9 +18,11 @@ import Paper from "@material-ui/core/Paper";
 import { i18n } from "../../translate/i18n";
 
 import ContactModal from "../ContactModal";
+import MergeContactModal from "../MergeContactModal";
 import ContactDrawerSkeleton from "../ContactDrawerSkeleton";
 import MarkdownWrapper from "../MarkdownWrapper";
 import TagsSelect from "../TagsSelect";
+import QueueSelectTicket from "../QueueSelectTicket";
 import {
 	Timeline,
 	TimelineItem,
@@ -37,6 +43,7 @@ const useStyles = makeStyles(theme => ({
 	drawerPaper: {
 		width: drawerWidth,
 		display: "flex",
+		height: "100%",
 		borderTop: "1px solid rgba(0, 0, 0, 0.12)",
 		borderRight: "1px solid rgba(0, 0, 0, 0.12)",
 		borderBottom: "1px solid rgba(0, 0, 0, 0.12)",
@@ -101,12 +108,9 @@ const useStyles = makeStyles(theme => ({
 	},
 	timelinePaper: {
 		marginTop: 8,
-		maxHeight: "280px",
-		overflowY: "auto",
 		padding: "12px",
 		display: "flex",
 		flexDirection: "column",
-		...theme.scrollbarStyles,
 	}
 }));
 
@@ -172,6 +176,8 @@ const ContactDrawer = ({ open, handleDrawerClose, contact, ticket, loading }) =>
 	const classes = useStyles();
 
 	const [modalOpen, setModalOpen] = useState(false);
+	const [mergeModalOpen, setMergeModalOpen] = useState(false);
+	const { user } = useContext(AuthContext);
 
 	return (
 		<Drawer
@@ -219,6 +225,16 @@ const ContactDrawer = ({ open, handleDrawerClose, contact, ticket, loading }) =>
 						>
 							{i18n.t("contactDrawer.buttons.edit")}
 						</Button>
+						{user.profile === "admin" && (
+							<Button
+								variant="outlined"
+								color="secondary"
+								onClick={() => setMergeModalOpen(true)}
+								style={{ marginTop: 8 }}
+							>
+								Unificar Contacto
+							</Button>
+						)}
 					</Paper>
 					<Paper square variant="outlined" className={classes.contactDetails}>
 						<ContactModal
@@ -226,7 +242,20 @@ const ContactDrawer = ({ open, handleDrawerClose, contact, ticket, loading }) =>
 							onClose={() => setModalOpen(false)}
 							contactId={contact.id}
 						></ContactModal>
-						<Typography variant="subtitle1">
+						<MergeContactModal
+							open={mergeModalOpen}
+							onClose={() => setMergeModalOpen(false)}
+							sourceContact={contact}
+						></MergeContactModal>
+						{ticket && (
+							<>
+								<Typography variant="subtitle1">
+									Departamento / Cola
+								</Typography>
+								<QueueSelectTicket ticket={ticket} />
+							</>
+						)}
+						<Typography variant="subtitle1" style={{ marginTop: 10 }}>
 							Etiquetas
 						</Typography>
 						<TagsSelect ticket={ticket} />

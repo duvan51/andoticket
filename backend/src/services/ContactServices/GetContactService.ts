@@ -1,6 +1,7 @@
 import AppError from "../../errors/AppError";
 import Contact from "../../models/Contact";
 import CreateContactService from "./CreateContactService";
+import { Op } from "sequelize";
 
 interface ExtraInfo {
   name: string;
@@ -21,9 +22,28 @@ const GetContactService = async ({
   number,
   companyId
 }: Request): Promise<Contact> => {
-  const numberExists = await Contact.findOne({
-    where: { number, ...(companyId && { companyId }) }
-  });
+  let numberExists: Contact | null = null;
+  if (number && number.length >= 10) {
+    const suffix = number.slice(-10);
+    numberExists = await Contact.findOne({
+      where: {
+        ...(companyId && { companyId }),
+        number: {
+          [Op.or]: [
+            number,
+            { [Op.like]: `%${suffix}` }
+          ]
+        }
+      }
+    });
+    if (numberExists && numberExists.number !== number) {
+      await numberExists.update({ number });
+    }
+  } else {
+    numberExists = await Contact.findOne({
+      where: { number, ...(companyId && { companyId }) }
+    });
+  }
 
   if (!numberExists) {
     const contact = await CreateContactService({
